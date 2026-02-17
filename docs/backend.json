@@ -90,9 +90,10 @@
         "senderType": {
           "type": "string",
           "description": "Indicates who sent the message, e.g., 'user' or 'ai'.",
-          "items": {
-            "type": "string"
-          }
+          "enum": [
+            "user",
+            "ai"
+          ]
         },
         "content": {
           "type": "string",

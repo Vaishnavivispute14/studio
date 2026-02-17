@@ -10,12 +10,12 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Bot, User, SendHorizonal } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { useFirebase, useCollection, useMemoFirebase, addDocumentNonBlocking, FirestorePermissionError, errorEmitter } from '@/firebase';
+import { useFirebase, useCollection, useMemoFirebase, addDocumentNonBlocking } from '@/firebase';
 import { collection, query, orderBy, serverTimestamp } from 'firebase/firestore';
 
 type Message = {
   id?: string;
-  role: "user" | "assistant";
+  senderType: "user" | "ai";
   content: string;
   timestamp?: any;
 };
@@ -53,26 +53,28 @@ export function ChatInterface({ chatSessionId }: ChatInterfaceProps) {
     e.preventDefault();
     if (!input.trim() || isLoading || !user) return;
 
-    const userMessage: Omit<Message, 'id'> = {
-      role: "user",
-      content: input,
-      timestamp: serverTimestamp(),
-    };
-    
     const tempUserInput = input;
     setInput("");
-    
+
     const messagesCollection = collection(firestore, `users/${user.uid}/chatSessions/${chatSessionId}/chatMessages`);
+    
+    const userMessage = {
+      senderType: "user" as const,
+      content: tempUserInput,
+      timestamp: serverTimestamp(),
+      chatSessionId: chatSessionId,
+    };
     addDocumentNonBlocking(messagesCollection, userMessage);
 
     setIsLoading(true);
 
     try {
       const { response } = await chatWithAi({ message: tempUserInput });
-      const assistantMessage: Omit<Message, 'id'> = {
-        role: "assistant",
+      const assistantMessage = {
+        senderType: "ai" as const,
         content: response,
         timestamp: serverTimestamp(),
+        chatSessionId: chatSessionId,
       };
       addDocumentNonBlocking(messagesCollection, assistantMessage);
     } catch (error) {
@@ -112,10 +114,10 @@ export function ChatInterface({ chatSessionId }: ChatInterfaceProps) {
                 key={message.id}
                 className={cn(
                   "flex items-start gap-4 animate-in fade-in-0 slide-in-from-bottom-4 duration-500",
-                  message.role === "user" ? "justify-end" : "justify-start"
+                  message.senderType === "user" ? "justify-end" : "justify-start"
                 )}
               >
-                {message.role === "assistant" && (
+                {message.senderType === "ai" && (
                   <Avatar className="w-8 h-8 border">
                     <AvatarFallback className="bg-primary text-primary-foreground">
                       <Bot className="w-5 h-5" />
@@ -125,14 +127,14 @@ export function ChatInterface({ chatSessionId }: ChatInterfaceProps) {
                 <div
                   className={cn(
                     "max-w-[75%] rounded-lg p-3 text-sm whitespace-pre-wrap",
-                    message.role === "user"
+                    message.senderType === "user"
                       ? "bg-primary text-primary-foreground"
                       : "bg-muted"
                   )}
                 >
                   {message.content}
                 </div>
-                {message.role === "user" && (
+                {message.senderType === "user" && (
                   <Avatar className="w-8 h-8 border">
                     <AvatarFallback className="bg-accent text-accent-foreground">
                       <User className="w-5 h-5" />
