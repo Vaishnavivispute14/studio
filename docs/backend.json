@@ -1,0 +1,187 @@
+{
+  "entities": {
+    "UserProfile": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "UserProfile",
+      "type": "object",
+      "description": "Represents a user of the AuraChat application, which can be either a registered user or a temporary guest.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the UserProfile entity."
+        },
+        "displayName": {
+          "type": "string",
+          "description": "A user-friendly name chosen by or assigned to the user profile."
+        },
+        "isGuest": {
+          "type": "boolean",
+          "description": "Indicates whether this user profile is for a temporary guest session (true) or a persistent user (false)."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the user profile was created.",
+          "format": "date-time"
+        },
+        "lastActiveAt": {
+          "type": "string",
+          "description": "Timestamp of the last known activity for this user profile.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "isGuest",
+        "createdAt",
+        "lastActiveAt"
+      ]
+    },
+    "ChatSession": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "ChatSession",
+      "type": "object",
+      "description": "Represents a single, continuous conversation thread between a user and the AI.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the ChatSession entity."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to UserProfile. (Relationship: UserProfile 1:N ChatSession)"
+        },
+        "title": {
+          "type": "string",
+          "description": "A user-editable title or a generated summary for the chat session, making it easier to identify in history."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the chat session was first initiated.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp when the chat session was last updated, typically when a new message was added.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "title",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "ChatMessage": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "ChatMessage",
+      "type": "object",
+      "description": "Represents an individual message within a ChatSession, sent by either the user or the AI.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the ChatMessage entity."
+        },
+        "chatSessionId": {
+          "type": "string",
+          "description": "Reference to ChatSession. (Relationship: ChatSession 1:N ChatMessage)"
+        },
+        "senderType": {
+          "type": "string",
+          "description": "Indicates who sent the message, e.g., 'user' or 'ai'.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "content": {
+          "type": "string",
+          "description": "The textual content of the message."
+        },
+        "timestamp": {
+          "type": "string",
+          "description": "The exact time the message was sent or received within the chat session, used for ordering.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "chatSessionId",
+        "senderType",
+        "content",
+        "timestamp"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "UserProfile",
+          "schema": {
+            "$ref": "#/backend/entities/UserProfile"
+          },
+          "description": "Stores individual user profiles, including details for both registered and guest users. Each document ID (`userId`) corresponds to the Firebase Authentication UID. Access is restricted to the owning user. Includes 'isGuest' to identify temporary profiles.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique Firebase Authentication User ID of the user."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/chatSessions/{chatSessionId}",
+        "definition": {
+          "entityName": "ChatSession",
+          "schema": {
+            "$ref": "#/backend/entities/ChatSession"
+          },
+          "description": "Stores individual chat sessions (conversations) for a specific user. Each document ID (`chatSessionId`) identifies a unique conversation thread. Access is restricted to the owning user, whose ID is denormalized in the path for authorization independence.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique Firebase Authentication User ID of the owner of this chat session."
+            },
+            {
+              "name": "chatSessionId",
+              "description": "The unique ID of the chat session."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/chatSessions/{chatSessionId}/chatMessages/{messageId}",
+        "definition": {
+          "entityName": "ChatMessage",
+          "schema": {
+            "$ref": "#/backend/entities/ChatMessage"
+          },
+          "description": "Stores individual messages within a specific chat session. Each document ID (`messageId`) identifies a single message. Access is restricted to the owning user of the parent chat session, with user and session IDs denormalized in the path for authorization independence.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique Firebase Authentication User ID of the owner of the parent chat session."
+            },
+            {
+              "name": "chatSessionId",
+              "description": "The unique ID of the parent chat session."
+            },
+            {
+              "name": "messageId",
+              "description": "The unique ID of the chat message."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The proposed Firestore structure prioritizes Authorization Independence and secure `list` operations (QAPs) by leveraging hierarchical, path-based ownership. \n\n1.  **Authorization Independence (Denormalization):** Access control is primarily achieved by embedding the `userId` directly into the path for all user-specific data. For example, a user's profile is at `/users/{userId}`, their chat sessions are at `/users/{userId}/chatSessions/{chatSessionId}`, and messages within a session are at `/users/{userId}/chatSessions/{chatSessionId}/chatMessages/{messageId}`. This means that Firestore security rules can directly compare `request.auth.uid` with the `{userId}` wildcard in the path, without needing to perform `get()` operations on parent documents. This prevents cascading authorization dependencies, simplifies rule logic, and allows for atomic operations (e.g., creating a session and its first message in a single batch).\n\n2.  **Structural Segregation & QAPs:** Each collection (`users`, `chatSessions`, `chatMessages`) is designed with a homogeneous security posture. All `UserProfile` documents are private to their respective users. Similarly, all `ChatSession` and `ChatMessage` documents within a user's subcollections are private to that user. This segregation ensures that `list` queries are inherently secure.\n    *   To list a user's profiles: Only the authenticated user can read their own profile document (`/users/{request.auth.uid}`). A global `list` on `/users` would not be allowed without a specific `{userId}` matching `request.auth.uid`.\n    *   To list a user's chat sessions: A user can securely query `/users/{request.auth.uid}/chatSessions`. The security rules will ensure that the `{userId}` in the path matches `request.auth.uid`, thereby automatically filtering results to only include the current user's sessions. \n    *   To list messages in a specific session: A user can securely query `/users/{request.auth.uid}/chatSessions/{chatSessionId}/chatMessages`. Again, the path-based authorization ensures only messages for the requesting user and specified session are accessible. \n\n3.  **DBAC & Guest Users:** User roles (though only implicit ownership here) are stored in the database (implicitly via the `userId` in the path and `isGuest` in `UserProfile`). Both registered and guest users (via Firebase Anonymous Auth) are treated uniformly at the database level, with their data residing under their respective `request.auth.uid` (which will be an anonymous UID for guests). The `isGuest` field provides additional context within the `UserProfile` document itself.\n\nThis design provides a clear, secure, and scalable foundation for AuraChat, making security rules straightforward and highly performant."
+  }
+}
