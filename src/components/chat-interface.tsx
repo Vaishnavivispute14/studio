@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, type FormEvent, forwardRef, useImperativeHandle } from "react";
+import { useState, useRef, useEffect, type FormEvent } from "react";
 import { chatWithAi } from "@/ai/flows/chat-with-ai";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,28 +10,36 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Bot, User, SendHorizonal } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { useFirebase, useCollection, useMemoFirebase, addDocumentNonBlocking, FirestorePermissionError, errorEmitter } from '@/firebase';
+import { collection, query, orderBy, serverTimestamp } from 'firebase/firestore';
 
 type Message = {
+  id?: string;
   role: "user" | "assistant";
   content: string;
+  timestamp?: any;
 };
 
-export type ChatInterfaceHandle = {
-  reset: () => void;
+type ChatInterfaceProps = {
+  chatSessionId: string;
 };
 
-export const ChatInterface = forwardRef<ChatInterfaceHandle, {}>((props, ref) => {
-  const [messages, setMessages] = useState<Message[]>([]);
+export function ChatInterface({ chatSessionId }: ChatInterfaceProps) {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { firestore, user } = useFirebase();
 
-  useImperativeHandle(ref, () => ({
-    reset: () => {
-      setMessages([]);
-    },
-  }));
+  const messagesQuery = useMemoFirebase(() => {
+    if (!user || !chatSessionId) return null;
+    return query(
+      collection(firestore, `users/${user.uid}/chatSessions/${chatSessionId}/chatMessages`),
+      orderBy('timestamp', 'asc')
+    );
+  }, [firestore, user, chatSessionId]);
+
+  const { data: messages, isLoading: messagesLoading } = useCollection<Message>(messagesQuery);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -43,17 +51,30 @@ export const ChatInterface = forwardRef<ChatInterfaceHandle, {}>((props, ref) =>
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!input.trim() || isLoading) return;
+    if (!input.trim() || isLoading || !user) return;
 
-    const userMessage: Message = { role: "user", content: input };
-    setMessages((prev) => [...prev, userMessage]);
+    const userMessage: Omit<Message, 'id'> = {
+      role: "user",
+      content: input,
+      timestamp: serverTimestamp(),
+    };
+    
+    const tempUserInput = input;
     setInput("");
+    
+    const messagesCollection = collection(firestore, `users/${user.uid}/chatSessions/${chatSessionId}/chatMessages`);
+    addDocumentNonBlocking(messagesCollection, userMessage);
+
     setIsLoading(true);
 
     try {
-      const { response } = await chatWithAi({ message: input });
-      const assistantMessage: Message = { role: "assistant", content: response };
-      setMessages((prev) => [...prev, assistantMessage]);
+      const { response } = await chatWithAi({ message: tempUserInput });
+      const assistantMessage: Omit<Message, 'id'> = {
+        role: "assistant",
+        content: response,
+        timestamp: serverTimestamp(),
+      };
+      addDocumentNonBlocking(messagesCollection, assistantMessage);
     } catch (error) {
       console.error("AI chat failed:", error);
       toast({
@@ -61,7 +82,6 @@ export const ChatInterface = forwardRef<ChatInterfaceHandle, {}>((props, ref) =>
         title: "Uh oh! Something went wrong.",
         description: "There was a problem with the AI response. Please try again.",
       });
-      setMessages((prev) => prev.slice(0, prev.length - 1));
     } finally {
       setIsLoading(false);
     }
@@ -75,16 +95,21 @@ export const ChatInterface = forwardRef<ChatInterfaceHandle, {}>((props, ref) =>
       <CardContent className="flex-1 overflow-hidden">
         <ScrollArea className="h-full pr-4">
           <div className="space-y-6">
-            {messages.length === 0 && !isLoading && (
+            {messagesLoading && messages?.length === 0 && (
+              <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground pt-16">
+                 <Bot className="w-12 h-12 animate-spin text-primary" />
+              </div>
+            )}
+            {!messagesLoading && messages?.length === 0 && (
               <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground pt-16">
                 <Bot className="w-16 h-16 mb-4" />
                 <p className="text-lg font-medium">Start a conversation with AuraChat!</p>
                 <p className="text-sm">Ask me anything, and I'll do my best to help.</p>
               </div>
             )}
-            {messages.map((message, index) => (
+            {messages?.map((message) => (
               <div
-                key={index}
+                key={message.id}
                 className={cn(
                   "flex items-start gap-4 animate-in fade-in-0 slide-in-from-bottom-4 duration-500",
                   message.role === "user" ? "justify-end" : "justify-start"
@@ -148,7 +173,7 @@ export const ChatInterface = forwardRef<ChatInterfaceHandle, {}>((props, ref) =>
                 handleSubmit(e as unknown as FormEvent<HTMLFormElement>);
               }
             }}
-            disabled={isLoading}
+            disabled={isLoading || messagesLoading}
             aria-label="Chat input"
           />
           <Button type="submit" size="icon" disabled={isLoading || !input.trim()} aria-label="Send message">
@@ -158,6 +183,6 @@ export const ChatInterface = forwardRef<ChatInterfaceHandle, {}>((props, ref) =>
       </CardFooter>
     </Card>
   );
-});
+}
 
 ChatInterface.displayName = "ChatInterface";
