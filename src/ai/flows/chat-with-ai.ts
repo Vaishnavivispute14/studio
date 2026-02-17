@@ -28,7 +28,7 @@ const prompt = ai.definePrompt({
   name: 'chatWithAiPrompt',
   input: {schema: ChatWithAiInputSchema},
   output: {schema: ChatWithAiOutputSchema},
-  prompt: `You are AuraChat, a helpful and friendly AI assistant. Respond to the user's message in a conversational manner.
+  prompt: `You are AuraChat, a helpful and friendly AI assistant. Respond to the user's message in a conversational manner. Format your response with paragraphs and newlines for readability.
 
 User message: {{{message}}}`,
 });

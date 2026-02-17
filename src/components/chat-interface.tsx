@@ -99,15 +99,13 @@ export const ChatInterface = forwardRef<ChatInterfaceHandle, {}>((props, ref) =>
                 )}
                 <div
                   className={cn(
-                    "max-w-[75%] rounded-lg p-3 text-sm",
+                    "max-w-[75%] rounded-lg p-3 text-sm whitespace-pre-wrap",
                     message.role === "user"
                       ? "bg-primary text-primary-foreground"
                       : "bg-muted"
                   )}
                 >
-                  {message.content.split('\n').map((line, i) => (
-                    <p key={i} className="[&:not(:first-child)]:mt-2">{line || '\u00A0'}</p>
-                  ))}
+                  {message.content}
                 </div>
                 {message.role === "user" && (
                   <Avatar className="w-8 h-8 border">
