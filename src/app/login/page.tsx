@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, Asterisk } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export default function LoginPage() {
@@ -20,7 +20,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [authType, setAuthType] = useState<'login' | 'signup'>('login');
+  const [authType, setAuthType] = useState<'login' | 'signup'>('signup');
 
   const auth = useAuth();
   const { user, isUserLoading } = useUser();
@@ -28,7 +28,6 @@ export default function LoginPage() {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Only redirect if user is logged in AND not anonymous
     if (!isUserLoading && user && !user.isAnonymous) {
       router.push('/chat');
     }
@@ -51,7 +50,6 @@ export default function LoginPage() {
       } else {
         await signInWithEmailAndPassword(auth, email, password);
       }
-      // Redirect is handled by useEffect
     } catch (error: any) {
       toast({
         variant: 'destructive',
@@ -75,21 +73,44 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="relative flex min-h-screen items-center justify-center overflow-hidden p-4 auth-background">
-      <div className="relative z-10 w-full max-w-sm">
-        <div className="bg-glass rounded-xl p-8 shadow-2xl text-white">
-          <div className="mb-8 text-center">
-            <h1 className="text-3xl font-bold">
-              {authType === 'login' ? 'Welcome Back' : 'Create an Account'}
-            </h1>
-            <p className="text-white/70">
-              {authType === 'login' ? 'Sign in to continue to NexBot' : 'Fill in the details to get started'}
-            </p>
+    <main className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-900 p-4">
+      <div className="w-full max-w-4xl grid md:grid-cols-2 bg-white dark:bg-card rounded-2xl shadow-lg overflow-hidden">
+        {/* Left Panel */}
+        <div className="relative hidden md:block p-8">
+           <div className="absolute inset-0 auth-container">
+            <div className="blob blob-1"></div>
+            <div className="blob blob-2"></div>
+            <div className="blob blob-3"></div>
           </div>
+          <div className="relative z-10 flex flex-col justify-between h-full">
+            <Asterisk className="h-8 w-8 text-white" />
+            <div className="space-y-2 text-white">
+              <p className="font-medium text-white/80">You can easily</p>
+              <h2 className="text-3xl font-bold leading-tight">
+                Get access your personal hub for clarity and productivity
+              </h2>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Panel */}
+        <div className="p-8 md:p-12">
+          <div className="flex items-center gap-2 mb-6">
+            <Asterisk className="h-6 w-6 text-primary" />
+          </div>
+
+          <h1 className="text-2xl font-bold text-foreground mb-1">
+            {authType === 'signup' ? 'Create an account' : 'Welcome back'}
+          </h1>
+          <p className="text-muted-foreground mb-8">
+            {authType === 'signup'
+              ? 'Access your tasks, notes, and projects anytime, anywhere.'
+              : 'Sign in to continue to NexBot.'}
+          </p>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">Your email</Label>
               <Input
                 id="email"
                 type="email"
@@ -98,32 +119,42 @@ export default function LoginPage() {
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 disabled={isSubmitting}
-                className="h-12 bg-transparent text-white placeholder:text-white/60 border-white/30"
+                className="h-12"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+                <div className="flex items-center justify-between">
+                    <Label htmlFor="password">Password</Label>
+                    {authType === 'login' && (
+                        <Link
+                            href="/forgot-password"
+                            className="text-sm text-primary hover:underline"
+                        >
+                            Forgot password?
+                        </Link>
+                    )}
+                </div>
               <div className="relative">
                 <Input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
-                  placeholder="Password"
+                  placeholder="••••••••"
                   required
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   disabled={isSubmitting}
-                  className="pr-10 h-12 bg-transparent text-white placeholder:text-white/60 border-white/30"
+                  className="pr-10 h-12"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
                   aria-label="Toggle password visibility"
                 >
                   {showPassword ? (
-                    <EyeOff className="h-5 w-5 text-white/70" />
+                    <EyeOff className="h-5 w-5" />
                   ) : (
-                    <Eye className="h-5 w-5 text-white/70" />
+                    <Eye className="h-5 w-5" />
                   )}
                 </button>
               </div>
@@ -132,43 +163,32 @@ export default function LoginPage() {
             <div className="pt-4">
               <Button
                 type="submit"
-                className="w-full h-12 text-base font-semibold bg-gradient-to-r from-primary to-accent text-primary-foreground hover:opacity-90 transition-opacity"
+                className="w-full h-12 text-base font-semibold"
                 disabled={isSubmitting}
               >
                 {isSubmitting
                   ? 'Loading...'
-                  : authType === 'login'
-                  ? 'Sign In'
-                  : 'Sign Up'}
+                  : authType === 'signup'
+                  ? 'Get Started'
+                  : 'Sign In'}
               </Button>
             </div>
           </form>
 
           <div className="mt-6 text-center text-sm">
-            {authType === 'login' ? (
-              <Link
-                href="/forgot-password"
-                className="text-white/70 hover:text-white transition-colors"
-              >
-                Forgot password?
-              </Link>
-            ) : null}
-          </div>
-
-          <div className="mt-4 text-center text-sm">
-            <p className="text-white/70">
-              {authType === 'login'
-                ? "Don't have an account?"
-                : 'Already have an account?'}
+            <p className="text-muted-foreground">
+              {authType === 'signup'
+                ? 'Already have an account?'
+                : "Don't have an account?"}
               <button
                 onClick={() => {
                   setAuthType(authType === 'login' ? 'signup' : 'login');
                   setEmail('');
                   setPassword('');
                 }}
-                className="ml-1 font-semibold text-white hover:underline"
+                className="ml-1 font-semibold text-primary hover:underline"
               >
-                {authType === 'login' ? 'Sign Up' : 'Log In'}
+                {authType === 'signup' ? 'Log In' : 'Sign Up'}
               </button>
             </p>
           </div>
