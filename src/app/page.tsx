@@ -16,8 +16,8 @@ export default function HomePage() {
         loading="lazy"
         allowFullScreen
       ></iframe>
-      <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/30">
-        <div className="relative z-10 text-center p-4">
+      <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/30 pointer-events-none">
+        <div className="relative z-10 text-center p-4 pointer-events-auto">
           <h1 className="text-6xl md:text-8xl font-bold text-white mb-4 animate-in fade-in slide-in-from-bottom-4 duration-1000">
             NexBot
           </h1>

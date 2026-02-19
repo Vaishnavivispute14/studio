@@ -28,7 +28,8 @@ export default function LoginPage() {
   const { toast } = useToast();
 
   useEffect(() => {
-    if (!isUserLoading && user) {
+    // Only redirect if user is logged in AND not anonymous
+    if (!isUserLoading && user && !user.isAnonymous) {
       router.push('/chat');
     }
   }, [user, isUserLoading, router]);
@@ -65,7 +66,7 @@ export default function LoginPage() {
     }
   };
 
-  if (isUserLoading || user) {
+  if (isUserLoading || (user && !user.isAnonymous)) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
         <div className="h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
