@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Asterisk } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -45,17 +45,15 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-     <main className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-900 p-4">
-      <div className="w-full max-w-md rounded-2xl bg-white dark:bg-card p-8 shadow-lg">
+    <main className="relative flex min-h-screen items-center justify-center p-4">
+      <div className="absolute inset-0 auth-container -z-10" />
+      <div className="w-full max-w-md rounded-2xl bg-card/80 p-8 shadow-lg backdrop-blur-lg">
         <div className="mb-8 text-center">
-            <div className="inline-flex items-center justify-center mb-4">
-                <Asterisk className="h-8 w-8 text-primary" />
-            </div>
-          <h1 className="text-2xl font-bold text-foreground">
-            Reset Password
+          <h1 className="mb-2 text-3xl font-bold text-foreground font-headline">
+            Forgot Password?
           </h1>
-          <p className="text-muted-foreground mt-2">
-            Enter your email to receive a reset link.
+          <p className="text-muted-foreground">
+            No worries, we'll send you reset instructions.
           </p>
         </div>
 

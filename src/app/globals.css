@@ -88,53 +88,24 @@
   .auth-container {
     background: linear-gradient(
       -45deg,
-      #6d28d9,
+      hsl(var(--primary)),
       #4f46e5,
       #2563eb,
-      #8b5cf6
+      hsl(var(--accent))
     );
     background-size: 400% 400%;
-    animation: gradient-animation 20s ease infinite;
-  }
-
-  .blob {
-    @apply absolute rounded-full opacity-50 mix-blend-screen filter blur-2xl;
-    animation: move 25s infinite alternate;
-  }
-  .blob-1 {
-    @apply w-80 h-80 bg-purple-400;
-    top: -10%;
-    left: -20%;
-    animation-duration: 30s;
-    animation-delay: -5s;
-  }
-  .blob-2 {
-    @apply w-96 h-96 bg-blue-400;
-    bottom: -15%;
-    right: -25%;
-    animation-duration: 35s;
-    animation-delay: -10s;
-  }
-   .blob-3 {
-    @apply w-72 h-72 bg-indigo-400;
-    bottom: 20%;
-    left: 10%;
-    animation-duration: 25s;
-    animation-delay: 0s;
-  }
-
-  @keyframes move {
-    from {
-      transform: translate(0, 0) rotate(0deg) scale(1);
-    }
-    to {
-      transform: translate(50px, -50px) rotate(180deg) scale(1.2);
-    }
+    animation: gradient-animation 15s ease infinite;
   }
 
   @keyframes gradient-animation {
-    0% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
+    0% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+    100% {
+      background-position: 0% 50%;
+    }
   }
 }

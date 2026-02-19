@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Eye, EyeOff, Asterisk } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export default function LoginPage() {
@@ -73,38 +73,34 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-900 p-4">
-      <div className="w-full max-w-4xl grid md:grid-cols-2 bg-white dark:bg-card rounded-2xl shadow-lg overflow-hidden">
-        {/* Left Panel */}
-        <div className="relative hidden md:block p-8">
-           <div className="absolute inset-0 auth-container">
-            <div className="blob blob-1"></div>
-            <div className="blob blob-2"></div>
-            <div className="blob blob-3"></div>
-          </div>
-          <div className="relative z-10 flex flex-col justify-between h-full">
-            <Asterisk className="h-8 w-8 text-white" />
-            <div className="space-y-2 text-white">
-              <p className="font-medium text-white/80">You can easily</p>
-              <h2 className="text-3xl font-bold leading-tight">
-                Get access your personal hub for clarity and productivity
-              </h2>
-            </div>
-          </div>
-        </div>
+    <main className="grid h-screen w-screen overflow-hidden md:grid-cols-2">
+      {/* Left Panel */}
+      <div className="relative hidden md:block p-12">
+        <div className="absolute inset-0 auth-container" />
+        <div className="relative z-10 flex flex-col justify-between h-full">
+           <div>
+             <h1 className="text-3xl font-bold text-white font-headline">NexBot</h1>
+           </div>
+           <div className="space-y-4 text-white">
+             <h2 className="text-4xl font-bold leading-tight">
+               Engage with the future of conversation.
+             </h2>
+              <p className="font-light text-white/80 text-lg">
+                Your personal AI assistant for instant answers, creative ideas, and seamless conversation.
+             </p>
+           </div>
+         </div>
+      </div>
 
-        {/* Right Panel */}
-        <div className="p-8 md:p-12">
-          <div className="flex items-center gap-2 mb-6">
-            <Asterisk className="h-6 w-6 text-primary" />
-          </div>
-
-          <h1 className="text-2xl font-bold text-foreground mb-1">
+      {/* Right Panel */}
+      <div className="flex flex-col justify-center p-8 md:p-12 bg-card">
+        <div className="mx-auto w-full max-w-md">
+          <h1 className="text-3xl font-bold text-foreground mb-2">
             {authType === 'signup' ? 'Create an account' : 'Welcome back'}
           </h1>
           <p className="text-muted-foreground mb-8">
             {authType === 'signup'
-              ? 'Access your tasks, notes, and projects anytime, anywhere.'
+              ? 'Sign up to save your chat history and unlock more features.'
               : 'Sign in to continue to NexBot.'}
           </p>
 
@@ -123,17 +119,17 @@ export default function LoginPage() {
               />
             </div>
             <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                    <Label htmlFor="password">Password</Label>
-                    {authType === 'login' && (
-                        <Link
-                            href="/forgot-password"
-                            className="text-sm text-primary hover:underline"
-                        >
-                            Forgot password?
-                        </Link>
-                    )}
-                </div>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password">Password</Label>
+                {authType === 'login' && (
+                  <Link
+                    href="/forgot-password"
+                    className="text-sm text-primary hover:underline"
+                  >
+                    Forgot password?
+                  </Link>
+                )}
+              </div>
               <div className="relative">
                 <Input
                   id="password"
@@ -169,7 +165,7 @@ export default function LoginPage() {
                 {isSubmitting
                   ? 'Loading...'
                   : authType === 'signup'
-                  ? 'Get Started'
+                  ? 'Sign Up'
                   : 'Sign In'}
               </Button>
             </div>
