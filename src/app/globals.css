@@ -88,10 +88,10 @@
   .auth-container {
     background: linear-gradient(
       -45deg,
-      hsl(var(--primary)),
-      #4f46e5,
-      #2563eb,
-      hsl(var(--accent))
+      hsl(260, 80%, 70%),
+      hsl(270, 80%, 60%),
+      hsl(280, 70%, 50%),
+      hsl(290, 80%, 40%)
     );
     background-size: 400% 400%;
     animation: gradient-animation 15s ease infinite;

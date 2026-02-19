@@ -75,13 +75,13 @@ export default function LoginPage() {
   return (
     <main className="grid h-screen w-screen overflow-hidden md:grid-cols-2">
       {/* Left Panel */}
-      <div className="relative hidden md:block p-12">
+      <div className="relative hidden md:block">
         <div className="absolute inset-0 auth-container" />
-        <div className="relative z-10 flex flex-col justify-between h-full">
+        <div className="relative z-10 flex flex-col justify-center h-full p-12 text-white">
            <div>
-             <h1 className="text-3xl font-bold text-white font-headline">NexBot</h1>
+             <h1 className="text-3xl font-bold font-headline mb-8">NexBot</h1>
            </div>
-           <div className="space-y-4 text-white">
+           <div className="space-y-4">
              <h2 className="text-4xl font-bold leading-tight">
                Engage with the future of conversation.
              </h2>
