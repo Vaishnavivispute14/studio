@@ -105,7 +105,7 @@ export function ChatInterface({ chatSessionId }: ChatInterfaceProps) {
             {!messagesLoading && messages?.length === 0 && (
               <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground pt-16">
                 <Bot className="w-16 h-16 mb-4" />
-                <p className="text-lg font-medium">Start a conversation with AuraChat!</p>
+                <p className="text-lg font-medium">Start a conversation with NexBot!</p>
                 <p className="text-sm">Ask me anything, and I'll do my best to help.</p>
               </div>
             )}

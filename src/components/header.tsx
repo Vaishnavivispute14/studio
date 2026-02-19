@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { SidebarTrigger } from "./ui/sidebar";
+import { ThemeToggle } from "./theme-toggle";
 
 type HeaderProps = {
   onNewChat: () => void;
@@ -29,13 +30,14 @@ export function Header({ onNewChat }: HeaderProps) {
     <header className="sticky top-0 z-10 flex items-center justify-between p-4 border-b bg-background/80 backdrop-blur-sm">
        <div className="flex items-center gap-4">
         <SidebarTrigger className="md:hidden" />
-        <h1 className="text-2xl font-bold text-primary font-headline hidden md:block">AuraChat</h1>
+        <h1 className="text-2xl font-bold text-primary font-headline hidden md:block">NexBot</h1>
       </div>
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-2">
         <Button variant="outline" size="sm" onClick={onNewChat} aria-label="Start new chat">
           <RefreshCw className="mr-2 h-4 w-4" />
           New Chat
         </Button>
+        <ThemeToggle />
         {user && (
            <DropdownMenu>
             <DropdownMenuTrigger asChild>

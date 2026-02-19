@@ -1,35 +1,27 @@
 'use client';
 
-import { useState, FormEvent, useEffect } from 'react';
+import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth, useUser } from '@/firebase';
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
-  signInAnonymously,
 } from 'firebase/auth';
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { Bot } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [authAction, setAuthAction] = useState<
-    'signIn' | 'signUp' | 'guest' | null
-  >(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [authType, setAuthType] = useState<'login' | 'signup'>('login');
+
   const auth = useAuth();
   const { user, isUserLoading } = useUser();
   const router = useRouter();
@@ -37,214 +29,150 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (!isUserLoading && user) {
-      router.push('/');
+      router.push('/chat');
     }
   }, [user, isUserLoading, router]);
 
-  const handleAuthAction = async (action: 'signIn' | 'signUp') => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
     if (!email || !password) {
       toast({
         variant: 'destructive',
-        title: 'Missing fields',
+        title: 'Missing Fields',
         description: 'Please enter both email and password.',
       });
       return;
     }
-    setIsLoading(true);
-    setAuthAction(action);
+    setIsSubmitting(true);
     try {
-      if (action === 'signUp') {
+      if (authType === 'signup') {
         await createUserWithEmailAndPassword(auth, email, password);
       } else {
         await signInWithEmailAndPassword(auth, email, password);
       }
+      // Redirect is handled by useEffect
     } catch (error: any) {
       toast({
         variant: 'destructive',
         title: 'Authentication Failed',
-        description: error.message || 'An unexpected error occurred.',
+        description:
+          error.code === 'auth/invalid-credential'
+            ? 'Invalid email or password.'
+            : error.message || 'An unexpected error occurred.',
       });
-      setIsLoading(false);
-      setAuthAction(null);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const handleGuestSignIn = async () => {
-    setIsLoading(true);
-    setAuthAction('guest');
-    try {
-      await signInAnonymously(auth);
-    } catch (error: any) {
-      toast({
-        variant: 'destructive',
-        title: 'Authentication Failed',
-        description: error.message || 'Could not sign in as guest.',
-      });
-      setIsLoading(false);
-      setAuthAction(null);
-    }
-  };
-
-  // Helper function to get loading text
-  const getLoadingText = () => {
-    if (!isLoading) return '';
-    switch (authAction) {
-      case 'signIn':
-        return 'Signing In...';
-      case 'signUp':
-        return 'Signing Up...';
-      case 'guest':
-        return 'Signing In...';
-      default:
-        return 'Loading...';
-    }
-  };
-
-  if (isUserLoading || (!isUserLoading && user)) {
+  if (isUserLoading || user) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
-        <Bot className="h-12 w-12 animate-spin text-primary" />
+        <div className="h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
       </div>
     );
   }
 
   return (
-    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background p-4">
-      <div className="absolute inset-0 -z-10 h-full w-full bg-background bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:4rem_4rem]">
-        <div className="absolute bottom-0 left-0 right-0 h-[30rem] bg-[radial-gradient(circle_500px_at_50%_calc(100%_+_200px),hsl(var(--accent)/0.1),transparent)]"></div>
-        <div className="absolute left-0 right-0 top-0 h-[30rem] bg-[radial-gradient(circle_500px_at_50%_-200px,hsl(var(--primary)/0.1),transparent)]"></div>
-      </div>
-      <Card className="w-full max-w-md bg-card/80 shadow-2xl backdrop-blur-sm">
-        <CardHeader className="text-center">
-          <div className="mb-4 flex justify-center">
-            <Bot className="h-12 w-12 text-primary" />
+    <main className="relative flex min-h-screen items-center justify-center overflow-hidden p-4 auth-background">
+      <div className="relative z-10 w-full max-w-sm">
+        <div className="bg-glass rounded-xl p-8 shadow-2xl text-white">
+          <div className="mb-8 text-center">
+            <h1 className="text-3xl font-bold">
+              {authType === 'login' ? 'Welcome Back' : 'Create an Account'}
+            </h1>
+            <p className="text-white/70">
+              {authType === 'login' ? 'Sign in to continue to NexBot' : 'Fill in the details to get started'}
+            </p>
           </div>
-          <CardTitle className="text-3xl font-bold text-primary">
-            AuraChat
-          </CardTitle>
-          <CardDescription>
-            Sign in to continue to your AI assistant
-          </CardDescription>
-        </CardHeader>
-        <Tabs defaultValue="login" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="login">Login</TabsTrigger>
-            <TabsTrigger value="signup">Sign Up</TabsTrigger>
-          </TabsList>
-          <TabsContent value="login">
-            <form
-              onSubmit={e => {
-                e.preventDefault();
-                handleAuthAction('signIn');
-              }}
-            >
-              <CardContent className="space-y-4 pt-6">
-                <div className="space-y-2">
-                  <Label htmlFor="email-login">Email</Label>
-                  <Input
-                    id="email-login"
-                    type="email"
-                    placeholder="m@example.com"
-                    required
-                    value={email}
-                    onChange={e => setEmail(e.target.value)}
-                    disabled={isLoading}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="password-login">Password</Label>
-                  <Input
-                    id="password-login"
-                    type="password"
-                    required
-                    value={password}
-                    onChange={e => setPassword(e.target.value)}
-                    disabled={isLoading}
-                  />
-                </div>
-              </CardContent>
-              <CardFooter className="flex flex-col gap-4">
-                <Button
-                  type="submit"
-                  className="w-full"
-                  disabled={isLoading}
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="your@email.com"
+                required
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                disabled={isSubmitting}
+                className="h-12 bg-transparent text-white placeholder:text-white/60 border-white/30"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="Password"
+                  required
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  disabled={isSubmitting}
+                  className="pr-10 h-12 bg-transparent text-white placeholder:text-white/60 border-white/30"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2"
+                  aria-label="Toggle password visibility"
                 >
-                  {isLoading && authAction === 'signIn'
-                    ? getLoadingText()
-                    : 'Sign In'}
-                </Button>
-              </CardFooter>
-            </form>
-          </TabsContent>
-          <TabsContent value="signup">
-            <form
-              onSubmit={e => {
-                e.preventDefault();
-                handleAuthAction('signUp');
-              }}
-            >
-              <CardContent className="space-y-4 pt-6">
-                <div className="space-y-2">
-                  <Label htmlFor="email-signup">Email</Label>
-                  <Input
-                    id="email-signup"
-                    type="email"
-                    placeholder="m@example.com"
-                    required
-                    value={email}
-                    onChange={e => setEmail(e.target.value)}
-                    disabled={isLoading}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="password-signup">Password</Label>
-                  <Input
-                    id="password-signup"
-                    type="password"
-                    required
-                    value={password}
-                    onChange={e => setPassword(e.target.value)}
-                    disabled={isLoading}
-                  />
-                </div>
-              </CardContent>
-              <CardFooter>
-                <Button
-                  type="submit"
-                  className="w-full"
-                  disabled={isLoading}
-                >
-                  {isLoading && authAction === 'signUp'
-                    ? getLoadingText()
-                    : 'Sign Up'}
-                </Button>
-              </CardFooter>
-            </form>
-          </TabsContent>
-        </Tabs>
-        <div className="relative my-4">
-          <div className="absolute inset-0 flex items-center">
-            <span className="w-full border-t" />
+                  {showPassword ? (
+                    <EyeOff className="h-5 w-5 text-white/70" />
+                  ) : (
+                    <Eye className="h-5 w-5 text-white/70" />
+                  )}
+                </button>
+              </div>
+            </div>
+
+            <div className="pt-4">
+              <Button
+                type="submit"
+                className="w-full h-12 text-base font-semibold bg-gradient-to-r from-primary to-accent text-primary-foreground hover:opacity-90 transition-opacity"
+                disabled={isSubmitting}
+              >
+                {isSubmitting
+                  ? 'Loading...'
+                  : authType === 'login'
+                  ? 'Sign In'
+                  : 'Sign Up'}
+              </Button>
+            </div>
+          </form>
+
+          <div className="mt-6 text-center text-sm">
+            {authType === 'login' ? (
+              <Link
+                href="/forgot-password"
+                className="text-white/70 hover:text-white transition-colors"
+              >
+                Forgot password?
+              </Link>
+            ) : null}
           </div>
-          <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-card px-2 text-muted-foreground">
-              Or continue with
-            </span>
+
+          <div className="mt-4 text-center text-sm">
+            <p className="text-white/70">
+              {authType === 'login'
+                ? "Don't have an account?"
+                : 'Already have an account?'}
+              <button
+                onClick={() => {
+                  setAuthType(authType === 'login' ? 'signup' : 'login');
+                  setEmail('');
+                  setPassword('');
+                }}
+                className="ml-1 font-semibold text-white hover:underline"
+              >
+                {authType === 'login' ? 'Sign Up' : 'Log In'}
+              </button>
+            </p>
           </div>
         </div>
-        <CardFooter>
-          <Button
-            variant="secondary"
-            className="w-full"
-            onClick={handleGuestSignIn}
-            disabled={isLoading}
-          >
-            {isLoading && authAction === 'guest'
-              ? getLoadingText()
-              : 'Sign In as Guest'}
-          </Button>
-        </CardFooter>
-      </Card>
+      </div>
     </main>
   );
 }
