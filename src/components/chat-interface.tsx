@@ -2,22 +2,31 @@
 
 import { useState, useRef, useEffect, type FormEvent } from "react";
 import { chatWithAi } from "@/ai/flows/chat-with-ai";
+import { generateChatTitle } from "@/ai/flows/generate-chat-title";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Bot, User, SendHorizonal, Wand2, Image as ImageIcon, SearchCode } from "lucide-react";
+import { Bot, User, SendHorizonal, Wand2, SearchCode } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { useFirebase, useCollection, useMemoFirebase, addDocumentNonBlocking } from '@/firebase';
-import { collection, query, orderBy, serverTimestamp } from 'firebase/firestore';
+import { useFirebase, useCollection, useDoc, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase';
+import { collection, query, orderBy, serverTimestamp, doc } from 'firebase/firestore';
 
 type Message = {
   id?: string;
   senderType: "user" | "ai";
   content: string;
-  timestamp?: any; 
+  timestamp?: any;
 };
+
+type ChatSession = {
+    id: string;
+    title: string;
+    userId: string;
+    createdAt: any;
+    updatedAt: any;
+}
 
 type ChatInterfaceProps = {
   chatSessionId: string;
@@ -26,9 +35,16 @@ type ChatInterfaceProps = {
 export function ChatInterface({ chatSessionId }: ChatInterfaceProps) {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [mode, setMode] = useState<'reasoning' | 'deep_research' | null>(null);
   const { toast } = useToast();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { firestore, user } = useFirebase();
+
+  const chatSessionRef = useMemoFirebase(() => {
+    if (!user || !chatSessionId) return null;
+    return doc(firestore, `users/${user.uid}/chatSessions/${chatSessionId}`);
+  }, [firestore, user, chatSessionId]);
+  const { data: chatSession } = useDoc<ChatSession>(chatSessionRef);
 
   const messagesQuery = useMemoFirebase(() => {
     if (!user || !chatSessionId) return null;
@@ -50,10 +66,13 @@ export function ChatInterface({ chatSessionId }: ChatInterfaceProps) {
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!input.trim() || isLoading || !user) return;
+    if (!input.trim() || isLoading || !user || !chatSessionRef) return;
 
     const tempUserInput = input;
+    const currentMode = mode;
     setInput("");
+    setMode(null);
+    setIsLoading(true);
 
     const messagesCollection = collection(firestore, `users/${user.uid}/chatSessions/${chatSessionId}/chatMessages`);
     
@@ -64,11 +83,21 @@ export function ChatInterface({ chatSessionId }: ChatInterfaceProps) {
       chatSessionId: chatSessionId,
     };
     addDocumentNonBlocking(messagesCollection, userMessage);
+    
+    // If this is the first message of a new chat, generate and set the title.
+    if (chatSession?.title === 'New Chat' && (!messages || messages.length === 0)) {
+        generateChatTitle({ message: tempUserInput })
+            .then(({ title }) => {
+                if (title) {
+                    updateDocumentNonBlocking(chatSessionRef, { title });
+                }
+            })
+            .catch(err => console.error("Failed to generate chat title:", err));
+    }
 
-    setIsLoading(true);
 
     try {
-      const { response } = await chatWithAi({ message: tempUserInput });
+      const { response } = await chatWithAi({ message: tempUserInput, mode: currentMode });
       const assistantMessage = {
         senderType: "ai" as const,
         content: response,
@@ -83,6 +112,8 @@ export function ChatInterface({ chatSessionId }: ChatInterfaceProps) {
         title: "Uh oh! Something went wrong.",
         description: "There was a problem with the AI response. Please try again.",
       });
+      // Optional: Re-add the failed user message to the input
+      // setInput(tempUserInput);
     } finally {
       setIsLoading(false);
     }
@@ -176,13 +207,10 @@ export function ChatInterface({ chatSessionId }: ChatInterfaceProps) {
                         </Button>
                     </div>
                      <div className="flex items-center gap-2 px-2 pb-1">
-                        <Button variant="outline" size="sm" className="text-xs gap-1.5" disabled>
+                        <Button variant={mode === 'reasoning' ? 'secondary' : 'outline'} size="sm" className="text-xs gap-1.5" onClick={() => setMode(prev => prev === 'reasoning' ? null : 'reasoning')}>
                            <Wand2 /> Reasoning
                         </Button>
-                         <Button variant="outline" size="sm" className="text-xs gap-1.5" disabled>
-                           <ImageIcon /> Create Image
-                        </Button>
-                         <Button variant="outline" size="sm" className="text-xs gap-1.5" disabled>
+                         <Button variant={mode === 'deep_research' ? 'secondary' : 'outline'} size="sm" className="text-xs gap-1.5" onClick={() => setMode(prev => prev === 'deep_research' ? null : 'deep_research')}>
                            <SearchCode /> Deep Research
                         </Button>
                     </div>
