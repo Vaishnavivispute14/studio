@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useContext, createContext } from 'react';
+import { useState, useContext, createContext, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import { collection, serverTimestamp, addDoc, query, orderBy } from 'firebase/firestore';
-import { useFirebase, useUser, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, serverTimestamp, addDoc, query, orderBy, doc } from 'firebase/firestore';
+import { useFirebase, useUser, useCollection, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase';
 import {
   SidebarProvider,
   Sidebar,
@@ -19,7 +19,7 @@ import {
   SidebarGroupLabel,
   SidebarSeparator,
 } from '@/components/ui/sidebar';
-import { Bot, MessageSquare, Plus, Search, Home, Compass, Library, History, LogOut, ChevronDown, User } from 'lucide-react';
+import { Bot, MessageSquare, Plus, Search, Home, Compass, Library, History, LogOut, ChevronDown, User, SendHorizonal, Wand2, SearchCode } from 'lucide-react';
 import useAuthRedirect from '@/hooks/use-auth-redirect';
 import { ChatInterface } from '@/components/chat-interface';
 import { Input } from '@/components/ui/input';
@@ -27,6 +27,11 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { Card, CardContent } from '@/components/ui/card';
+import { useToast } from '@/hooks/use-toast';
+import { generateChatTitle } from '@/ai/flows/generate-chat-title';
+import { chatWithAi } from '@/ai/flows/chat-with-ai';
+
 
 const ChatSidebar = () => {
   const { user, auth } = useFirebase();
@@ -269,26 +274,139 @@ export default function ChatPage() {
 }
 
 const MainContentBody = () => {
-    const { selectedChatId } = useChatState();
+    const { selectedChatId, setSelectedChatId } = useChatState();
     const { user } = useUser();
+    const { firestore } = useFirebase();
+    const { toast } = useToast();
 
-    return (
-        <main className="flex-1 flex items-center justify-center p-4 md:p-6">
-            {selectedChatId ? (
+    // State for the welcome screen's input
+    const [input, setInput] = useState("");
+    const [isLoading, setIsLoading] = useState(false);
+    const [mode, setMode] = useState<'reasoning' | 'deep_research' | null>(null);
+
+    const handleWelcomeSubmit = async (e: FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        if (!input.trim() || isLoading || !user) return;
+
+        const tempUserInput = input;
+        const currentMode = mode;
+        
+        setInput("");
+        setMode(null);
+        setIsLoading(true); // Disable form on this screen
+
+        try {
+            const newChatSession = {
+                title: 'New Chat',
+                userId: user.uid,
+                createdAt: serverTimestamp(),
+                updatedAt: serverTimestamp(),
+            };
+            
+            const sessionDocRef = await addDoc(
+                collection(firestore, 'users', user.uid, 'chatSessions'),
+                newChatSession
+            );
+            const newChatId = sessionDocRef.id;
+            
+            const messagesCollection = collection(firestore, `users/${user.uid}/chatSessions/${newChatId}/chatMessages`);
+            const userMessage = {
+              senderType: "user" as const,
+              content: tempUserInput,
+              timestamp: serverTimestamp(),
+              chatSessionId: newChatId,
+            };
+            addDocumentNonBlocking(messagesCollection, userMessage);
+            
+            setSelectedChatId(newChatId); // This will unmount the welcome screen and mount ChatInterface
+
+            // background tasks
+            generateChatTitle({ message: tempUserInput })
+                .then(({ title }) => {
+                    if (title) {
+                        updateDocumentNonBlocking(sessionDocRef, { title });
+                    }
+                })
+                .catch(err => console.error("Failed to generate chat title:", err));
+            
+            const { response } = await chatWithAi({ message: tempUserInput, mode: currentMode });
+            const assistantMessage = {
+              senderType: "ai" as const,
+              content: response,
+              timestamp: serverTimestamp(),
+              chatSessionId: newChatId,
+            };
+            addDocumentNonBlocking(messagesCollection, assistantMessage);
+
+        } catch (error) {
+           console.error("Failed to create new chat:", error);
+           toast({
+             variant: "destructive",
+             title: "Uh oh! Something went wrong.",
+             description: "Could not start a new chat. Please try again.",
+           });
+           setIsLoading(false); // Re-enable form if there was an error
+        }
+    };
+
+    if (selectedChatId) {
+        return (
+             <main className="flex-1 flex items-center justify-center p-4 md:p-6">
                 <ChatInterface key={selectedChatId} chatSessionId={selectedChatId} />
-            ) : (
-            <div className="flex flex-col items-center justify-center h-full text-center">
+            </main>
+        );
+    }
+    
+    return (
+        <main className="h-full flex flex-col justify-center items-center p-4 md:p-6">
+            <div className="flex-1 flex flex-col justify-center items-center text-center -mt-24">
                 <div className="mb-4 relative w-20 h-20">
                     <div className="absolute inset-0 rounded-full bg-primary/20 blur-2xl animate-pulse"></div>
                 </div>
-                <h1 className="text-4xl md:text-5xl font-bold text-foreground">
+                <h1 className="text-3xl md:text-4xl font-bold text-foreground">
                     Good Morning, {user?.displayName || 'User'}
                 </h1>
-                <h2 className="text-3xl md:text-4xl font-bold text-muted-foreground mt-2">
+                <h2 className="text-2xl md:text-3xl font-bold text-muted-foreground mt-2">
                     How Can I Assist You Today?
                 </h2>
             </div>
-            )}
+            <div className="w-full max-w-4xl">
+                 <Card className="p-2 rounded-2xl shadow-lg">
+                    <CardContent className="p-0">
+                        <form onSubmit={handleWelcomeSubmit} className="flex flex-col gap-2">
+                        <div className="relative">
+                            <Wand2 className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                            <textarea
+                                value={input}
+                                onChange={(e) => setInput(e.target.value)}
+                                placeholder="Initiate a query or send a command to the AI..."
+                                className="w-full resize-none border-0 bg-transparent pl-12 pr-12 py-3 text-sm focus:ring-0 focus-visible:ring-0"
+                                rows={1}
+                                onKeyDown={(e) => {
+                                    if (e.key === "Enter" && !e.shiftKey) {
+                                        e.preventDefault();
+                                        handleWelcomeSubmit(e as unknown as FormEvent<HTMLFormElement>);
+                                    }
+                                }}
+                                disabled={isLoading}
+                                aria-label="Chat input"
+                            />
+                            <Button type="submit" size="icon" disabled={isLoading || !input.trim()} className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg">
+                                <SendHorizonal />
+                            </Button>
+                        </div>
+                         <div className="flex items-center gap-2 px-2 pb-1">
+                            <Button variant={mode === 'reasoning' ? 'secondary' : 'outline'} size="sm" className="text-xs gap-1.5" onClick={() => setMode(prev => prev === 'reasoning' ? null : 'reasoning')}>
+                               <Wand2 /> Reasoning
+                            </Button>
+                             <Button variant={mode === 'deep_research' ? 'secondary' : 'outline'} size="sm" className="text-xs gap-1.5" onClick={() => setMode(prev => prev === 'deep_research' ? null : 'deep_research')}>
+                               <SearchCode /> Deep Research
+                            </Button>
+                        </div>
+                    </form>
+                    </CardContent>
+                </Card>
+            </div>
         </main>
-    )
+    );
 }
