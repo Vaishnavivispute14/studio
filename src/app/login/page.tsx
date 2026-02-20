@@ -98,7 +98,7 @@ export default function LoginPage() {
          <div className="absolute inset-0 bg-gradient-to-br from-background/40 via-transparent to-background/40" />
         <div className="relative z-10 flex flex-col justify-center h-full p-12 text-white">
            <div>
-             <h1 className="text-3xl font-bold font-headline mb-8 tracking-wide">NexBot</h1>
+             <h1 className="text-5xl font-bold font-headline mb-8 tracking-wide">NexBot</h1>
            </div>
            <div className="space-y-4">
              <h2 className="text-4xl font-bold leading-tight">

@@ -30,7 +30,7 @@ export function Header({ onNewChat }: HeaderProps) {
     <header className="sticky top-0 z-10 flex items-center justify-between p-4 border-b bg-background/80 backdrop-blur-sm">
        <div className="flex items-center gap-4">
         <SidebarTrigger className="md:hidden" />
-        <h1 className="text-2xl font-bold text-primary font-headline hidden md:block tracking-wide">NexBot</h1>
+        <h1 className="text-3xl font-bold text-primary font-headline hidden md:block tracking-wide">NexBot</h1>
       </div>
       <div className="flex items-center gap-2">
         <Button variant="outline" size="sm" onClick={onNewChat} aria-label="Start new chat">
