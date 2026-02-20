@@ -12,7 +12,11 @@ import {z} from 'genkit';
 
 const ChatWithAiInputSchema = z.object({
   message: z.string().describe("The user's message to the AI chatbot."),
-  mode: z.enum(['reasoning', 'deep_research']).optional().describe('The mode of operation for the AI.'),
+  mode: z
+    .enum(['reasoning', 'deep_research'])
+    .optional()
+    .nullable()
+    .describe('The mode of operation for the AI.'),
 });
 export type ChatWithAiInput = z.infer<typeof ChatWithAiInputSchema>;
 
