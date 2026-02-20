@@ -73,7 +73,7 @@ export default function ChatPage() {
         <SidebarContent>
           <SidebarHeader>
             <div className="flex h-10 items-center px-2">
-              <h1 className="text-2xl font-bold text-primary font-headline">NexBot</h1>
+              <h1 className="text-2xl font-bold text-primary font-headline tracking-wide">NexBot</h1>
             </div>
           </SidebarHeader>
           <SidebarMenu>

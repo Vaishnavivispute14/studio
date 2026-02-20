@@ -7,6 +7,7 @@ import { useAuth, useUser } from '@/firebase';
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
+  signInAnonymously
 } from 'firebase/auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -28,14 +29,14 @@ export default function LoginPage() {
   const { toast } = useToast();
 
   useEffect(() => {
+    // Redirect only if user is fully logged in (not anonymous)
     if (!isUserLoading && user && !user.isAnonymous) {
       router.push('/chat');
     }
   }, [user, isUserLoading, router]);
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (!email || !password) {
+  const handleAuthAction = async (action: 'login' | 'signup') => {
+     if (!email || !password) {
       toast({
         variant: 'destructive',
         title: 'Missing Fields',
@@ -45,11 +46,12 @@ export default function LoginPage() {
     }
     setIsSubmitting(true);
     try {
-      if (authType === 'signup') {
+      if (action === 'signup') {
         await createUserWithEmailAndPassword(auth, email, password);
       } else {
         await signInWithEmailAndPassword(auth, email, password);
       }
+      // Successful login/signup will trigger the useEffect to redirect
     } catch (error: any) {
       toast({
         variant: 'destructive',
@@ -62,7 +64,23 @@ export default function LoginPage() {
     } finally {
       setIsSubmitting(false);
     }
-  };
+  }
+
+  const handleGuestLogin = async () => {
+    setIsSubmitting(true);
+    try {
+      await signInAnonymously(auth);
+      router.push('/chat');
+    } catch (error: any) {
+       toast({
+        variant: 'destructive',
+        title: 'Guest Login Failed',
+        description: error.message || 'An unexpected error occurred.',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
 
   if (isUserLoading || (user && !user.isAnonymous)) {
     return (
@@ -75,11 +93,12 @@ export default function LoginPage() {
   return (
     <main className="grid h-screen w-screen overflow-hidden md:grid-cols-2">
       {/* Left Panel */}
-      <div className="relative hidden md:block">
+      <div className="relative hidden items-center justify-center md:flex">
         <div className="absolute inset-0 auth-container" />
+         <div className="absolute inset-0 bg-gradient-to-br from-background/40 via-transparent to-background/40" />
         <div className="relative z-10 flex flex-col justify-center h-full p-12 text-white">
            <div>
-             <h1 className="text-3xl font-bold font-headline mb-8">NexBot</h1>
+             <h1 className="text-3xl font-bold font-headline mb-8 tracking-wide">NexBot</h1>
            </div>
            <div className="space-y-4">
              <h2 className="text-4xl font-bold leading-tight">
@@ -104,7 +123,7 @@ export default function LoginPage() {
               : 'Sign in to continue to NexBot.'}
           </p>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={(e) => { e.preventDefault(); handleAuthAction(authType); }} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Your email</Label>
               <Input
@@ -156,17 +175,28 @@ export default function LoginPage() {
               </div>
             </div>
 
-            <div className="pt-4">
+            <div className="pt-4 space-y-2">
               <Button
                 type="submit"
                 className="w-full h-12 text-base font-semibold"
                 disabled={isSubmitting}
               >
-                {isSubmitting
-                  ? 'Loading...'
+                {isSubmitting && authType !== 'login'
+                  ? 'Creating Account...'
+                  : isSubmitting && authType === 'login'
+                  ? 'Signing In...'
                   : authType === 'signup'
-                  ? 'Sign Up'
+                  ? 'Create Account'
                   : 'Sign In'}
+              </Button>
+               <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full h-12 text-base font-semibold"
+                  onClick={handleGuestLogin}
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? 'Loading...' : 'Continue as Guest'}
               </Button>
             </div>
           </form>

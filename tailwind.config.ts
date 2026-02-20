@@ -10,8 +10,8 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        body: ['"Space Grotesk"', 'sans-serif'],
-        headline: ['"Space Grotesk"', 'sans-serif'],
+        body: ['"Inter"', 'sans-serif'],
+        headline: ['"Cormorant Garamond"', 'serif'],
         code: ['"Roboto Mono"', 'monospace'],
       },
       colors: {

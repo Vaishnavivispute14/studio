@@ -17,7 +17,7 @@ type Message = {
   id?: string;
   senderType: "user" | "ai";
   content: string;
-  timestamp?: any;
+  timestamp?: any; 
 };
 
 type ChatInterfaceProps = {
