@@ -3,11 +3,10 @@
 import { useState, useRef, useEffect, type FormEvent } from "react";
 import { chatWithAi } from "@/ai/flows/chat-with-ai";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Bot, User, SendHorizonal } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Bot, User, SendHorizonal, Wand2, Image as ImageIcon, SearchCode } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useFirebase, useCollection, useMemoFirebase, addDocumentNonBlocking } from '@/firebase';
@@ -90,100 +89,108 @@ export function ChatInterface({ chatSessionId }: ChatInterfaceProps) {
   };
 
   return (
-    <Card className="w-full max-w-3xl h-[calc(100vh-12rem)] flex flex-col shadow-lg">
-      <CardHeader>
-        <CardTitle className="text-lg font-headline">Conversation</CardTitle>
-      </CardHeader>
-      <CardContent className="flex-1 overflow-hidden">
-        <ScrollArea className="h-full pr-4">
-          <div className="space-y-6">
-            {messagesLoading && messages?.length === 0 && (
-              <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground pt-16">
-                 <Bot className="w-12 h-12 animate-spin text-primary" />
-              </div>
-            )}
-            {!messagesLoading && messages?.length === 0 && (
-              <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground pt-16">
-                <Bot className="w-16 h-16 mb-4" />
-                <p className="text-lg font-medium">Start a conversation with NexBot!</p>
-                <p className="text-sm">Ask me anything, and I'll do my best to help.</p>
-              </div>
-            )}
-            {messages?.map((message) => (
-              <div
-                key={message.id}
-                className={cn(
-                  "flex items-start gap-4 animate-in fade-in-0 slide-in-from-bottom-4 duration-500",
-                  message.senderType === "user" ? "justify-end" : "justify-start"
-                )}
-              >
-                {message.senderType === "ai" && (
-                  <Avatar className="w-8 h-8 border">
-                    <AvatarFallback className="bg-primary text-primary-foreground">
-                      <Bot className="w-5 h-5" />
-                    </AvatarFallback>
-                  </Avatar>
-                )}
-                <div
-                  className={cn(
-                    "max-w-[75%] rounded-lg p-3 text-sm whitespace-pre-wrap",
-                    message.senderType === "user"
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted"
-                  )}
-                >
-                  {message.content}
-                </div>
-                {message.senderType === "user" && (
-                  <Avatar className="w-8 h-8 border">
-                    <AvatarFallback className="bg-accent text-accent-foreground">
-                      <User className="w-5 h-5" />
-                    </AvatarFallback>
-                  </Avatar>
-                )}
-              </div>
-            ))}
-            {isLoading && (
-              <div className="flex items-start gap-4 justify-start animate-pulse">
+    <div className="w-full max-w-4xl h-full flex flex-col">
+      <ScrollArea className="flex-1 pr-4 -mr-4">
+        <div className="space-y-8 pb-8">
+          {messagesLoading && messages?.length === 0 && (
+            <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground pt-16">
+                <Bot className="w-12 h-12 animate-spin text-primary" />
+            </div>
+          )}
+          {messages?.map((message) => (
+            <div
+              key={message.id}
+              className={cn(
+                "flex items-start gap-4 animate-in fade-in-0 slide-in-from-bottom-4 duration-500",
+                message.senderType === "user" ? "justify-end" : "justify-start"
+              )}
+            >
+              {message.senderType === "ai" && (
                 <Avatar className="w-8 h-8 border">
                   <AvatarFallback className="bg-primary text-primary-foreground">
                     <Bot className="w-5 h-5" />
                   </AvatarFallback>
                 </Avatar>
-                <div className="max-w-[75%] rounded-lg p-3 bg-muted space-y-2 w-full">
-                  <div className="h-4 bg-slate-300 rounded w-1/3"></div>
-                  <div className="h-4 bg-slate-300 rounded w-2/3"></div>
-                  <div className="h-4 bg-slate-300 rounded w-1/2"></div>
-                </div>
+              )}
+              <div
+                className={cn(
+                  "max-w-[75%] rounded-lg p-4 text-sm whitespace-pre-wrap shadow-sm",
+                  message.senderType === "user"
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-card"
+                )}
+              >
+                {message.content}
               </div>
-            )}
-            <div ref={messagesEndRef} />
-          </div>
-        </ScrollArea>
-      </CardContent>
-      <CardFooter className="p-4 border-t">
-        <form onSubmit={handleSubmit} className="flex w-full items-center gap-2">
-          <Textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Type your message..."
-            className="flex-1 resize-none"
-            rows={1}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                handleSubmit(e as unknown as FormEvent<HTMLFormElement>);
-              }
-            }}
-            disabled={isLoading || messagesLoading}
-            aria-label="Chat input"
-          />
-          <Button type="submit" size="icon" disabled={isLoading || !input.trim()} aria-label="Send message">
-            <SendHorizonal />
-          </Button>
-        </form>
-      </CardFooter>
-    </Card>
+              {message.senderType === "user" && (
+                <Avatar className="w-8 h-8 border">
+                  <AvatarImage src={user?.photoURL || ''} />
+                  <AvatarFallback className="bg-accent text-accent-foreground">
+                    {user?.displayName ? user.displayName[0] : <User />}
+                  </AvatarFallback>
+                </Avatar>
+              )}
+            </div>
+          ))}
+          {isLoading && (
+            <div className="flex items-start gap-4 justify-start animate-pulse">
+              <Avatar className="w-8 h-8 border">
+                <AvatarFallback className="bg-primary text-primary-foreground">
+                  <Bot className="w-5 h-5" />
+                </AvatarFallback>
+              </Avatar>
+              <div className="max-w-[75%] rounded-lg p-3 bg-muted space-y-2 w-full">
+                <div className="h-4 bg-slate-300 rounded w-1/3"></div>
+                <div className="h-4 bg-slate-300 rounded w-2/3"></div>
+                <div className="h-4 bg-slate-300 rounded w-1/2"></div>
+              </div>
+            </div>
+          )}
+          <div ref={messagesEndRef} />
+        </div>
+      </ScrollArea>
+
+      <div className="mt-auto pt-4">
+        <Card className="p-2 rounded-2xl shadow-lg">
+            <CardContent className="p-0">
+                <form onSubmit={handleSubmit} className="flex flex-col gap-2">
+                    <div className="relative">
+                        <Wand2 className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                        <textarea
+                            value={input}
+                            onChange={(e) => setInput(e.target.value)}
+                            placeholder="Initiate a query or send a command to the AI..."
+                            className="w-full resize-none border-0 bg-transparent pl-12 pr-12 py-3 text-sm focus:ring-0 focus-visible:ring-0"
+                            rows={1}
+                            onKeyDown={(e) => {
+                                if (e.key === "Enter" && !e.shiftKey) {
+                                e.preventDefault();
+                                handleSubmit(e as unknown as FormEvent<HTMLFormElement>);
+                                }
+                            }}
+                            disabled={isLoading || messagesLoading}
+                            aria-label="Chat input"
+                        />
+                        <Button type="submit" size="icon" disabled={isLoading || !input.trim()} className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg">
+                            <SendHorizonal />
+                        </Button>
+                    </div>
+                     <div className="flex items-center gap-2 px-2 pb-1">
+                        <Button variant="outline" size="sm" className="text-xs gap-1.5" disabled>
+                           <Wand2 /> Reasoning
+                        </Button>
+                         <Button variant="outline" size="sm" className="text-xs gap-1.5" disabled>
+                           <ImageIcon /> Create Image
+                        </Button>
+                         <Button variant="outline" size="sm" className="text-xs gap-1.5" disabled>
+                           <SearchCode /> Deep Research
+                        </Button>
+                    </div>
+                </form>
+            </CardContent>
+        </Card>
+      </div>
+    </div>
   );
 }
 
