@@ -35,7 +35,7 @@ export default function HomePage() {
                 className="text-lg px-8 py-6 bg-primary/80 hover:bg-primary backdrop-blur-sm border border-primary-foreground/20 animate-in fade-in slide-in-from-bottom-12 duration-1000"
                 onClick={() => router.push('/login')}
               >
-                Sign Up
+                Get Started
               </Button>
             </div>
           </div>
