@@ -38,6 +38,7 @@ const ChatPromptInputSchema = z.object({
 
 const prompt = ai.definePrompt({
   name: 'chatWithAiPrompt',
+  model: 'googleai/gemini-1.5-flash',
   input: {schema: ChatPromptInputSchema},
   output: {schema: ChatWithAiOutputSchema},
   prompt: `You are NexBot, a helpful and friendly AI assistant. Respond to the user's message in a conversational manner. Format your response with paragraphs and newlines for readability.
