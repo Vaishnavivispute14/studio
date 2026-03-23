@@ -40,7 +40,7 @@ const prompt = ai.definePrompt({
   name: 'chatWithAiPrompt',
   input: {schema: ChatPromptInputSchema},
   output: {schema: ChatWithAiOutputSchema},
-  prompt: `You are AuraChat, a helpful and friendly AI assistant. Respond to the user's message in a conversational manner. Format your response with paragraphs and newlines for readability.
+  prompt: `You are NexBot, a helpful and friendly AI assistant. Respond to the user's message in a conversational manner. Format your response with paragraphs and newlines for readability.
 {{#if isReasoning}}
 
 You are currently in **Reasoning Mode**: Provide step-by-step reasoning and logical explanations for your answers. Break down complex topics.
