@@ -8,7 +8,7 @@ export default function HomePage() {
   const router = useRouter();
 
   return (
-    <div className="flex flex-col min-h-screen bg-black">
+    <div className="flex flex-col min-h-screen bg-[#0a0a0b]">
       <Navbar />
       
       <main className="flex-1 relative">
@@ -22,21 +22,23 @@ export default function HomePage() {
             loading="lazy"
             allowFullScreen
           ></iframe>
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/30 pointer-events-none">
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/15 pointer-events-none">
             <div className="relative z-10 text-center p-4 pointer-events-auto">
-              <h1 className="text-6xl md:text-8xl font-bold text-white mb-4 animate-in fade-in slide-in-from-bottom-4 duration-1000 font-headline tracking-tight">
+              <h1 className="text-6xl md:text-8xl font-bold text-white mb-4 animate-in fade-in slide-in-from-bottom-4 duration-1000 font-headline tracking-tight drop-shadow-[0_0_20px_rgba(255,255,255,0.25)]">
                 NexBot
               </h1>
-              <p className="text-xl md:text-2xl text-white/80 mb-8 animate-in fade-in slide-in-from-bottom-8 duration-1000">
-                Your personal AI assistant.
+              <p className="text-xl md:text-2xl text-white/95 mb-8 animate-in fade-in slide-in-from-bottom-8 duration-1000 max-w-2xl mx-auto font-medium drop-shadow-sm">
+                Your personal AI assistant for instant answers, creative ideas, and seamless conversation.
               </p>
-              <Button
-                size="lg"
-                className="text-lg px-8 py-6 bg-primary/80 hover:bg-primary backdrop-blur-sm border border-primary-foreground/20 animate-in fade-in slide-in-from-bottom-12 duration-1000"
-                onClick={() => router.push('/login')}
-              >
-                Get Started
-              </Button>
+              <div className="animate-in fade-in slide-in-from-bottom-12 duration-1000">
+                <Button
+                  size="lg"
+                  className="text-lg px-10 py-7 bg-gradient-to-br from-primary via-primary/90 to-accent hover:scale-105 transition-all duration-300 shadow-[0_0_30px_rgba(168,85,247,0.3)] border border-primary-foreground/10"
+                  onClick={() => router.push('/login')}
+                >
+                  Get Started
+                </Button>
+              </div>
             </div>
           </div>
         </div>

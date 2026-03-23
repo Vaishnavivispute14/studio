@@ -30,7 +30,7 @@ export function Navbar() {
           {mounted ? (
             <Bot className="w-6 h-6 text-primary transition-transform group-hover:scale-110" />
           ) : (
-            <div className="w-6 h-6" /> // Placeholder to avoid layout shift
+            <div className="w-6 h-6" />
           )}
           <span className="text-xl font-bold text-white font-headline tracking-tight">
             NexBot
@@ -58,7 +58,7 @@ export function Navbar() {
           className="bg-primary/90 hover:bg-primary text-white font-semibold px-5 h-8 rounded-full text-xs"
           onClick={() => router.push('/login')}
         >
-          Get Started
+          Log In
         </Button>
       </div>
     </nav>
