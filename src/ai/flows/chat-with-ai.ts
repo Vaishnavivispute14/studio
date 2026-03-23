@@ -29,20 +29,25 @@ export async function chatWithAi(input: ChatWithAiInput): Promise<ChatWithAiOutp
   return chatWithAiFlow(input);
 }
 
+// Internal schema for the prompt to avoid complex logic in Handlebars
+const ChatPromptInputSchema = z.object({
+  message: z.string(),
+  isReasoning: z.boolean().optional(),
+  isDeepResearch: z.boolean().optional(),
+});
+
 const prompt = ai.definePrompt({
   name: 'chatWithAiPrompt',
-  input: {schema: ChatWithAiInputSchema},
+  input: {schema: ChatPromptInputSchema},
   output: {schema: ChatWithAiOutputSchema},
   prompt: `You are AuraChat, a helpful and friendly AI assistant. Respond to the user's message in a conversational manner. Format your response with paragraphs and newlines for readability.
-{{#if mode}}
+{{#if isReasoning}}
 
-You are currently in a special mode:
-{{#if (eq mode "reasoning")}}
-**Reasoning Mode:** Provide step-by-step reasoning and logical explanations for your answers. Break down complex topics.
+You are currently in **Reasoning Mode**: Provide step-by-step reasoning and logical explanations for your answers. Break down complex topics.
 {{/if}}
-{{#if (eq mode "deep_research")}}
-**Deep Research Mode:** Provide a comprehensive, in-depth answer. If possible, consult external knowledge and mention potential sources, but do not fabricate URLs.
-{{/if}}
+{{#if isDeepResearch}}
+
+You are currently in **Deep Research Mode**: Provide a comprehensive, in-depth answer. If possible, consult external knowledge and mention potential sources, but do not fabricate URLs.
 {{/if}}
 
 User message: {{{message}}}`,
@@ -55,7 +60,12 @@ const chatWithAiFlow = ai.defineFlow(
     outputSchema: ChatWithAiOutputSchema,
   },
   async input => {
-    const {output} = await prompt(input);
+    // Pre-process the input to set flags for the prompt
+    const {output} = await prompt({
+      message: input.message,
+      isReasoning: input.mode === 'reasoning',
+      isDeepResearch: input.mode === 'deep_research',
+    });
     return output!;
   }
 );
