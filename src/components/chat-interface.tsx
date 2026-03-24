@@ -1,17 +1,19 @@
+
 "use client";
 
-import { useState, useRef, useEffect, type FormEvent, useContext, createContext } from "react";
+import { useState, useRef, useEffect, type FormEvent } from "react";
 import { chatWithAi } from "@/ai/flows/chat-with-ai";
 import { generateChatTitle } from "@/ai/flows/generate-chat-title";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Bot, User, SendHorizonal, Wand2, SearchCode } from "lucide-react";
+import { Bot, User, SendHorizonal, Wand2, SearchCode, MoreVertical, Pin, Archive, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { useFirebase, useCollection, useDoc, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase';
+import { useFirebase, useCollection, useDoc, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
 import { collection, query, orderBy, serverTimestamp, doc } from 'firebase/firestore';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 
 type Message = {
   id?: string;
@@ -24,6 +26,8 @@ type ChatSession = {
     id: string;
     title: string;
     userId: string;
+    isPinned?: boolean;
+    isArchived?: boolean;
     createdAt: any;
     updatedAt: any;
 }
@@ -31,10 +35,6 @@ type ChatSession = {
 type ChatInterfaceProps = {
   chatSessionId: string;
 };
-
-// Internal context to handle guest state shared with page.tsx if needed, 
-// but we'll use a local fallback here or expect context from parent.
-// For simplicity, we assume parent chat/page.tsx provides context for guest messages.
 
 export function ChatInterface({ chatSessionId }: ChatInterfaceProps) {
   const [input, setInput] = useState("");
@@ -47,7 +47,6 @@ export function ChatInterface({ chatSessionId }: ChatInterfaceProps) {
   // Handle Guest Mode (Temporary State)
   const isGuestSession = chatSessionId === 'guest';
   
-  // These hooks are skipped for guest sessions
   const chatSessionRef = useMemoFirebase(() => {
     if (!user || !chatSessionId || isGuestSession) return null;
     return doc(firestore, `users/${user.uid}/chatSessions/${chatSessionId}`);
@@ -65,12 +64,7 @@ export function ChatInterface({ chatSessionId }: ChatInterfaceProps) {
 
   const { data: firestoreMessages, isLoading: messagesLoading } = useCollection<Message>(messagesQuery);
 
-  // Guest State Management
   const [localGuestMessages, setLocalGuestMessages] = useState<Message[]>([]);
-  
-  // Effect to pull initial guest messages from a global store if needed, 
-  // but for now we'll rely on local state if it's the first time mounting.
-  // Actually, in ChatPage we handle the first message for guests.
   
   const displayMessages = isGuestSession ? localGuestMessages : firestoreMessages;
 
@@ -81,6 +75,25 @@ export function ChatInterface({ chatSessionId }: ChatInterfaceProps) {
   useEffect(() => {
     scrollToBottom();
   }, [displayMessages, isLoading]);
+
+  const handleAction = (action: 'pin' | 'archive' | 'delete') => {
+    if (!user || !chatSessionRef) return;
+    
+    switch (action) {
+      case 'pin':
+        updateDocumentNonBlocking(chatSessionRef, { isPinned: !chatSession?.isPinned });
+        toast({ title: chatSession?.isPinned ? "Unpinned" : "Pinned", description: `Chat session ${chatSession?.isPinned ? 'unpinned' : 'pinned'}.` });
+        break;
+      case 'archive':
+        updateDocumentNonBlocking(chatSessionRef, { isArchived: !chatSession?.isArchived });
+        toast({ title: chatSession?.isArchived ? "Unarchived" : "Archived", description: `Chat session ${chatSession?.isArchived ? 'unarchived' : 'archived'}.` });
+        break;
+      case 'delete':
+        deleteDocumentNonBlocking(chatSessionRef);
+        toast({ variant: "destructive", title: "Deleted", description: "Chat session removed permanently." });
+        break;
+    }
+  };
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -151,6 +164,31 @@ export function ChatInterface({ chatSessionId }: ChatInterfaceProps) {
 
   return (
     <div className="w-full max-w-4xl h-full flex flex-col">
+      <div className="flex items-center justify-between mb-6 pb-2 border-b">
+        <h2 className="text-xl font-bold truncate pr-4">{isGuestSession ? 'Guest Session' : chatSession?.title}</h2>
+        {!isGuestSession && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <MoreVertical className="h-5 w-5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem onClick={() => handleAction('pin')}>
+                <Pin className="mr-2 h-4 w-4" /> {chatSession?.isPinned ? 'Unpin Chat' : 'Pin Chat'}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleAction('archive')}>
+                <Archive className="mr-2 h-4 w-4" /> Archive
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => handleAction('delete')} className="text-destructive">
+                <Trash2 className="mr-2 h-4 w-4" /> Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+      </div>
+
       <ScrollArea className="flex-1 pr-4 -mr-4">
         <div className="space-y-8 pb-8">
           {messagesLoading && !isGuestSession && (

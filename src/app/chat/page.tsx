@@ -1,9 +1,10 @@
+
 "use client";
 
 import { useState, useContext, createContext, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import { collection, serverTimestamp, addDoc, query, orderBy } from 'firebase/firestore';
-import { useFirebase, useUser, useCollection, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase';
+import { collection, serverTimestamp, addDoc, query, orderBy, where, doc } from 'firebase/firestore';
+import { useFirebase, useUser, useCollection, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
 import {
   SidebarProvider,
   Sidebar,
@@ -19,24 +20,35 @@ import {
   SidebarGroupLabel,
   SidebarSeparator,
 } from '@/components/ui/sidebar';
-import { Bot, MessageSquare, Plus, Search, Home, Compass, Library, History, LogOut, ChevronDown, User, SendHorizonal, Wand2, SearchCode, Sparkles } from 'lucide-react';
+import { Bot, MessageSquare, Plus, Search, Home, Compass, History, LogOut, ChevronDown, User, SendHorizonal, Wand2, SearchCode, Sparkles, MoreVertical, Pin, Archive, Trash2, Edit2, Check, X } from 'lucide-react';
 import useAuthRedirect from '@/hooks/use-auth-redirect';
 import { ChatInterface } from '@/components/chat-interface';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { generateChatTitle } from '@/ai/flows/generate-chat-title';
 import { chatWithAi } from '@/ai/flows/chat-with-ai';
+import { cn } from '@/lib/utils';
 
 type Message = {
   id?: string;
   senderType: "user" | "ai";
   content: string;
   timestamp?: any;
+};
+
+type ChatSession = {
+  id: string;
+  title: string;
+  userId: string;
+  isPinned?: boolean;
+  isArchived?: boolean;
+  createdAt: any;
+  updatedAt: any;
 };
 
 type ChatState = {
@@ -64,9 +76,103 @@ const useChatState = () => {
     return context;
 }
 
+const ChatHistoryItem = ({ session, isSelected, onSelect }: { session: ChatSession; isSelected: boolean; onSelect: (id: string) => void }) => {
+  const { user, firestore } = useFirebase();
+  const { toast } = useToast();
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [newTitle, setNewTitle] = useState(session.title);
+
+  const handleAction = (action: 'pin' | 'archive' | 'delete' | 'rename') => {
+    if (!user) return;
+    const sessionRef = doc(firestore, 'users', user.uid, 'chatSessions', session.id);
+
+    switch (action) {
+      case 'pin':
+        updateDocumentNonBlocking(sessionRef, { isPinned: !session.isPinned });
+        toast({ title: session.isPinned ? "Unpinned" : "Pinned", description: `Chat session ${session.isPinned ? 'unpinned' : 'pinned'}.` });
+        break;
+      case 'archive':
+        updateDocumentNonBlocking(sessionRef, { isArchived: !session.isArchived });
+        toast({ title: session.isArchived ? "Unarchived" : "Archived", description: `Chat session ${session.isArchived ? 'unarchived' : 'archived'}.` });
+        break;
+      case 'delete':
+        deleteDocumentNonBlocking(sessionRef);
+        toast({ variant: "destructive", title: "Deleted", description: "Chat session removed permanently." });
+        break;
+      case 'rename':
+        setIsRenaming(true);
+        break;
+    }
+  };
+
+  const submitRename = () => {
+    if (!user || !newTitle.trim()) return;
+    const sessionRef = doc(firestore, 'users', user.uid, 'chatSessions', session.id);
+    updateDocumentNonBlocking(sessionRef, { title: newTitle.trim() });
+    setIsRenaming(false);
+  };
+
+  return (
+    <SidebarMenuItem className="group/item relative">
+      {isRenaming ? (
+        <div className="flex items-center gap-1 p-1 bg-accent/20 rounded-md">
+          <Input 
+            value={newTitle} 
+            onChange={(e) => setNewTitle(e.target.value)} 
+            className="h-7 text-xs px-2 py-0" 
+            autoFocus
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') submitRename();
+              if (e.key === 'Escape') setIsRenaming(false);
+            }}
+          />
+          <Button size="icon" variant="ghost" className="h-6 w-6" onClick={submitRename}><Check className="h-3 w-3" /></Button>
+          <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive" onClick={() => setIsRenaming(false)}><X className="h-3 w-3" /></Button>
+        </div>
+      ) : (
+        <>
+          <SidebarMenuButton
+            isActive={isSelected}
+            onClick={() => onSelect(session.id)}
+            className="pr-8"
+          >
+            <MessageSquare className={cn("h-4 w-4 shrink-0", session.isPinned && "text-primary fill-primary/20")} />
+            <span className="truncate">{session.title}</span>
+            {session.isPinned && <Pin className="h-3 w-3 absolute right-8 text-primary/50 rotate-45" />}
+          </SidebarMenuButton>
+
+          <div className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover/item:opacity-100 transition-opacity">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-7 w-7">
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem onClick={() => handleAction('rename')}>
+                  <Edit2 className="mr-2 h-4 w-4" /> Rename
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleAction('pin')}>
+                  <Pin className="mr-2 h-4 w-4" /> {session.isPinned ? 'Unpin' : 'Pin'}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleAction('archive')}>
+                  <Archive className="mr-2 h-4 w-4" /> Archive
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => handleAction('delete')} className="text-destructive">
+                  <Trash2 className="mr-2 h-4 w-4" /> Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </>
+      )}
+    </SidebarMenuItem>
+  );
+};
+
 const ChatSidebar = () => {
-  const { user, auth } = useFirebase();
-  const { firestore } = useFirebase();
+  const { user, auth, firestore } = useFirebase();
   const { toast } = useToast();
   const router = useRouter();
   
@@ -79,12 +185,20 @@ const ChatSidebar = () => {
 
   const chatSessionsQuery = useMemoFirebase(() => {
     if (!user || user.isAnonymous) return null;
-    return query(collection(firestore, 'users', user.uid, 'chatSessions'), orderBy('createdAt', 'desc'));
+    return query(
+      collection(firestore, 'users', user.uid, 'chatSessions'), 
+      where('isArchived', '!=', true),
+      orderBy('isArchived'),
+      orderBy('createdAt', 'desc')
+    );
   }, [firestore, user]);
 
-  const { data: chatSessions, isLoading: sessionsLoading } = useCollection(chatSessionsQuery);
+  const { data: chatSessions, isLoading: sessionsLoading } = useCollection<ChatSession>(chatSessionsQuery);
 
-  const groupedSessions = chatSessions?.reduce((acc, session) => {
+  const pinnedSessions = chatSessions?.filter(s => s.isPinned) || [];
+  const regularSessions = chatSessions?.filter(s => !s.isPinned) || [];
+
+  const groupedSessions = regularSessions.reduce((acc, session) => {
     if (!session.createdAt) return acc;
     const date = new Date(session.createdAt.seconds * 1000);
     const now = new Date();
@@ -95,23 +209,21 @@ const ChatSidebar = () => {
     if (diffDays <= 1) group = 'Today';
     else if (diffDays <= 7) group = 'Previous 7 Days';
 
-    if(!acc[group]) {
-        acc[group] = [];
-    }
+    if(!acc[group]) acc[group] = [];
     acc[group].push(session);
     return acc;
-  }, {} as Record<string, typeof chatSessions>);
+  }, {} as Record<string, ChatSession[]>);
 
   const { setOpenMobile } = useSidebar();
   const { setSelectedChatId, selectedChatId, setGuestMessages } = useChatState();
-
   const [searchQuery, setSearchQuery] = useState("");
 
-  const filteredGroups = groupedSessions ? Object.entries(groupedSessions).reduce((acc, [group, sessions]) => {
+  const filteredPinned = pinnedSessions.filter(s => s.title?.toLowerCase().includes(searchQuery.toLowerCase()));
+  const filteredGroups = Object.entries(groupedSessions).reduce((acc, [group, sessions]) => {
       const filtered = sessions.filter(s => s.title?.toLowerCase().includes(searchQuery.toLowerCase()));
       if (filtered.length > 0) acc[group] = filtered;
       return acc;
-  }, {} as Record<string, typeof chatSessions>) : null;
+  }, {} as Record<string, ChatSession[]>);
 
   return (
     <>
@@ -167,7 +279,7 @@ const ChatSidebar = () => {
         <SidebarSeparator />
 
         <SidebarGroup>
-          <SidebarGroupLabel>History</SidebarGroupLabel>
+          <SidebarGroupLabel>Quick Nav</SidebarGroupLabel>
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton onClick={() => {
@@ -188,29 +300,29 @@ const ChatSidebar = () => {
         
         {sessionsLoading && (
             <SidebarGroup>
-                 <SidebarGroupLabel>Recent</SidebarGroupLabel>
+                 <SidebarGroupLabel>Loading history...</SidebarGroupLabel>
                  <div className="h-8 w-full bg-muted animate-pulse rounded-md mt-2" />
                  <div className="h-8 w-full bg-muted animate-pulse rounded-md mt-2" />
             </SidebarGroup>
         )}
 
-        {filteredGroups && Object.entries(filteredGroups).map(([group, sessions]) => (
+        {!sessionsLoading && filteredPinned.length > 0 && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Pinned</SidebarGroupLabel>
+            <SidebarMenu>
+              {filteredPinned.map(session => (
+                <ChatHistoryItem key={session.id} session={session} isSelected={selectedChatId === session.id} onSelect={setSelectedChatId} />
+              ))}
+            </SidebarMenu>
+          </SidebarGroup>
+        )}
+
+        {!sessionsLoading && filteredGroups && Object.entries(filteredGroups).map(([group, sessions]) => (
             <SidebarGroup key={group}>
                 <SidebarGroupLabel>{group}</SidebarGroupLabel>
                 <SidebarMenu>
                     {sessions.map((session) => (
-                        <SidebarMenuItem key={session.id}>
-                            <SidebarMenuButton
-                              isActive={selectedChatId === session.id}
-                              onClick={() => {
-                                  setSelectedChatId(session.id);
-                                  setOpenMobile(false);
-                              }}
-                            >
-                            <MessageSquare className="h-4 w-4" />
-                            <span className="truncate">{session.title}</span>
-                            </SidebarMenuButton>
-                        </SidebarMenuItem>
+                      <ChatHistoryItem key={session.id} session={session} isSelected={selectedChatId === session.id} onSelect={setSelectedChatId} />
                     ))}
                 </SidebarMenu>
             </SidebarGroup>

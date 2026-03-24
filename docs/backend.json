@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "UserProfile": {
@@ -53,6 +54,14 @@
         "title": {
           "type": "string",
           "description": "A user-editable title or a generated summary for the chat session, making it easier to identify in history."
+        },
+        "isPinned": {
+          "type": "boolean",
+          "description": "Flag to indicate if the chat session is pinned to the top of the list."
+        },
+        "isArchived": {
+          "type": "boolean",
+          "description": "Flag to indicate if the chat session is moved to the archives and hidden from the main list."
         },
         "createdAt": {
           "type": "string",
@@ -182,7 +191,6 @@
           ]
         }
       }
-    ],
-    "reasoning": "The proposed Firestore structure prioritizes Authorization Independence and secure `list` operations (QAPs) by leveraging hierarchical, path-based ownership. \n\n1.  **Authorization Independence (Denormalization):** Access control is primarily achieved by embedding the `userId` directly into the path for all user-specific data. For example, a user's profile is at `/users/{userId}`, their chat sessions are at `/users/{userId}/chatSessions/{chatSessionId}`, and messages within a session are at `/users/{userId}/chatSessions/{chatSessionId}/chatMessages/{messageId}`. This means that Firestore security rules can directly compare `request.auth.uid` with the `{userId}` wildcard in the path, without needing to perform `get()` operations on parent documents. This prevents cascading authorization dependencies, simplifies rule logic, and allows for atomic operations (e.g., creating a session and its first message in a single batch).\n\n2.  **Structural Segregation & QAPs:** Each collection (`users`, `chatSessions`, `chatMessages`) is designed with a homogeneous security posture. All `UserProfile` documents are private to their respective users. Similarly, all `ChatSession` and `ChatMessage` documents within a user's subcollections are private to that user. This segregation ensures that `list` queries are inherently secure.\n    *   To list a user's profiles: Only the authenticated user can read their own profile document (`/users/{request.auth.uid}`). A global `list` on `/users` would not be allowed without a specific `{userId}` matching `request.auth.uid`.\n    *   To list a user's chat sessions: A user can securely query `/users/{request.auth.uid}/chatSessions`. The security rules will ensure that the `{userId}` in the path matches `request.auth.uid`, thereby automatically filtering results to only include the current user's sessions. \n    *   To list messages in a specific session: A user can securely query `/users/{request.auth.uid}/chatSessions/{chatSessionId}/chatMessages`. Again, the path-based authorization ensures only messages for the requesting user and specified session are accessible. \n\n3.  **DBAC & Guest Users:** User roles (though only implicit ownership here) are stored in the database (implicitly via the `userId` in the path and `isGuest` in `UserProfile`). Both registered and guest users (via Firebase Anonymous Auth) are treated uniformly at the database level, with their data residing under their respective `request.auth.uid` (which will be an anonymous UID for guests). The `isGuest` field provides additional context within the `UserProfile` document itself.\n\nThis design provides a clear, secure, and scalable foundation for NexBot, making security rules straightforward and highly performant."
+    ]
   }
 }
