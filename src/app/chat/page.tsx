@@ -19,7 +19,7 @@ import {
   SidebarGroupLabel,
   SidebarSeparator,
 } from '@/components/ui/sidebar';
-import { Bot, MessageSquare, Plus, Search, Home, Compass, History, LogOut, ChevronDown, User, SendHorizonal, Wand2, SearchCode, Sparkles, MoreVertical, Pin, Archive, Trash2, Edit2, Check, X } from 'lucide-react';
+import { Bot, MessageSquare, Plus, Search, Home, Compass, History, LogOut, ChevronDown, User, SendHorizonal, Wand2, SearchCode, Sparkles, MoreVertical, Pin, Archive, Trash2, Edit2, Check, X, Mic } from 'lucide-react';
 import useAuthRedirect from '@/hooks/use-auth-redirect';
 import { ChatInterface } from '@/components/chat-interface';
 import { Input } from '@/components/ui/input';
@@ -184,7 +184,6 @@ const ChatSidebar = () => {
 
   const chatSessionsQuery = useMemoFirebase(() => {
     if (!user || user.isAnonymous) return null;
-    // Simplified query to ensure readability and reliability
     return query(
       collection(firestore, 'users', user.uid, 'chatSessions'), 
       orderBy('createdAt', 'desc')
@@ -193,7 +192,6 @@ const ChatSidebar = () => {
 
   const { data: chatSessions, isLoading: sessionsLoading } = useCollection<ChatSession>(chatSessionsQuery);
 
-  // Filter archived and handle pinning on the client side for better performance/reliability
   const activeSessions = chatSessions?.filter(s => !s.isArchived) || [];
   const pinnedSessions = activeSessions.filter(s => s.isPinned) || [];
   const regularSessions = activeSessions.filter(s => !s.isPinned) || [];
@@ -483,7 +481,6 @@ const MainContentBody = () => {
             setSelectedChatId('guest');
             setIsLoading(false);
 
-            // Execute AI response for guest
             try {
                 const { response } = await chatWithAi({ message: tempUserInput, mode: currentMode });
                 setGuestMessages(prev => [...prev, { senderType: "ai", content: response, timestamp: new Date() }]);
@@ -555,29 +552,19 @@ const MainContentBody = () => {
     }
     
     return (
-        <main className="h-full flex flex-col justify-center items-center p-4 md:p-6">
-            <div className="flex-1 flex flex-col justify-center items-center text-center -mt-24">
-                <div className="mb-4 relative w-20 h-20">
-                    <div className="absolute inset-0 rounded-full bg-primary/20 blur-2xl animate-pulse"></div>
-                </div>
-                <h1 className="text-3xl md:text-4xl font-bold text-foreground">
-                    Good Morning, {user?.displayName || (user?.isAnonymous ? 'Guest' : 'User')}
-                </h1>
-                <h2 className="text-2xl md:text-3xl font-bold text-muted-foreground mt-2">
-                    How Can I Assist You Today?
-                </h2>
-            </div>
-            <div className="w-full max-w-4xl">
-                 <Card className="p-2 rounded-2xl shadow-lg">
-                    <CardContent className="p-0">
-                        <form onSubmit={handleWelcomeSubmit} className="flex flex-col gap-2">
-                        <div className="relative">
-                            <Wand2 className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+        <main className="h-full flex flex-col justify-center items-center p-4 md:p-6 relative">
+            <div className="w-full max-w-4xl animate-in fade-in slide-in-from-bottom-8 duration-700">
+                <div className="relative group">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                        <Plus className="h-5 w-5 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                    </div>
+                    <form onSubmit={handleWelcomeSubmit}>
+                        <div className="relative flex items-center">
                             <textarea
                                 value={input}
                                 onChange={(e) => setInput(e.target.value)}
-                                placeholder="Initiate a query or send a command to the AI..."
-                                className="w-full resize-none border-0 bg-transparent pl-12 pr-12 py-3 text-sm focus:ring-0 focus-visible:ring-0"
+                                placeholder="Ask anything"
+                                className="block w-full rounded-full bg-muted/30 border border-white/10 py-4 pl-12 pr-28 text-lg ring-offset-background placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/30 transition-all resize-none overflow-hidden"
                                 rows={1}
                                 onKeyDown={(e) => {
                                     if (e.key === "Enter" && !e.shiftKey) {
@@ -588,21 +575,19 @@ const MainContentBody = () => {
                                 disabled={isLoading}
                                 aria-label="Chat input"
                             />
-                            <Button type="submit" size="icon" disabled={isLoading || !input.trim()} className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg">
-                                <SendHorizonal />
-                            </Button>
-                        </div>
-                         <div className="flex items-center gap-2 px-2 pb-1">
-                            <Button variant={mode === 'reasoning' ? 'secondary' : 'outline'} size="sm" className="text-xs gap-1.5" onClick={() => setMode(prev => prev === 'reasoning' ? null : 'reasoning')}>
-                               <Wand2 /> Reasoning
-                            </Button>
-                             <Button variant={mode === 'deep_research' ? 'secondary' : 'outline'} size="sm" className="text-xs gap-1.5" onClick={() => setMode(prev => prev === 'deep_research' ? null : 'deep_research')}>
-                               <SearchCode /> Deep Research
-                            </Button>
+                            <div className="absolute right-2 flex items-center gap-2 pr-2">
+                                <Button type="button" variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
+                                    <Mic className="h-5 w-5" />
+                                </Button>
+                                <Button type="submit" size="icon" className="rounded-full bg-white text-black hover:bg-white/90 shadow-lg">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM10 16.5V7.5L16 12L10 16.5Z" fill="currentColor"/>
+                                    </svg>
+                                </Button>
+                            </div>
                         </div>
                     </form>
-                    </CardContent>
-                </Card>
+                </div>
             </div>
         </main>
     );
