@@ -1,9 +1,7 @@
 /**
  * This ruleset enforces a strict user-ownership model for a chat application.
- * The core philosophy is that all user data is private and completely siloed.
- * A user, whether registered or a guest, can only access data that exists
- * within their own dedicated document tree.
- *
+ * Triggering a redeployment to ensure rules are in sync with the application.
+ * 
  * Data Structure:
  * The Firestore database is organized hierarchically. All data related to a
  * specific user is nested under a document in the top-level `/users` collection,
@@ -11,19 +9,6 @@
  * - /users/{userId} (UserProfile)
  * - /users/{userId}/chatSessions/{chatSessionId} (ChatSession)
  * - /users/{userId}/chatSessions/{chatSessionId}/chatMessages/{messageId} (ChatMessage)
- *
- * Key Security Decisions:
- * - Authorization Independence: Security rules rely on the `{userId}` wildcard in
- *   the document path to grant access. This avoids slow, costly, and complex `get()`
- *   calls to other documents for authorization checks.
- * - Privacy by Default: Listing documents from the top-level `/users` collection
- *   is explicitly forbidden to prevent enumeration of user profiles.
- * - Authentication Required: No data is publicly readable or writable. All
- *   requests must come from an authenticated user, including anonymous guest users.
- * - Relational Integrity: On document creation, rules validate that key ID fields
- *   (e.g., `userId`, `chatSessionId`) within the document's data correctly match the
- *   IDs in the document path, ensuring data consistency. These IDs are immutable
- *   on update.
  */
 rules_version = '2';
 service cloud.firestore {
@@ -102,10 +87,6 @@ service cloud.firestore {
     /**
      * @description Rules for a user's own profile document.
      * @path /users/{userId}
-     * @allow (get) An authenticated user reads their own profile: `get /users/user_abc` (auth.uid: 'user_abc').
-     * @deny (list) Any user, even an admin, tries to list all user profiles: `list /users`.
-     * @deny (create) A user tries to create a profile for another user: `create /users/user_xyz` (auth.uid: 'user_abc').
-     * @principle Restricts access to a user's own data tree and prevents user enumeration.
      */
     match /users/{userId} {
       allow get: if isOwner(userId);
@@ -117,10 +98,6 @@ service cloud.firestore {
       /**
        * @description Rules for chat sessions owned by a specific user.
        * @path /users/{userId}/chatSessions/{chatSessionId}
-       * @allow (list) An authenticated user lists their own chat sessions: `list /users/user_abc/chatSessions` (auth.uid: 'user_abc').
-       * @allow (create) An authenticated user creates a new chat session for themselves: `create /users/user_abc/chatSessions/session_123` (auth.uid: 'user_abc').
-       * @deny (get) A user tries to read another user's chat session: `get /users/user_xyz/chatSessions/session_456` (auth.uid: 'user_abc').
-       * @principle Enforces document ownership for all operations within a user's subcollection.
        */
       match /chatSessions/{chatSessionId} {
         allow get: if isOwner(userId);
@@ -132,10 +109,6 @@ service cloud.firestore {
         /**
          * @description Rules for messages within a user's specific chat session.
          * @path /users/{userId}/chatSessions/{chatSessionId}/chatMessages/{messageId}
-         * @allow (list) An authenticated user lists messages in one of their own chat sessions: `list /users/user_abc/chatSessions/session_123/chatMessages` (auth.uid: 'user_abc').
-         * @allow (create) An authenticated user adds a new message to their chat: `create /users/user_abc/chatSessions/session_123/chatMessages/msg_789` (auth.uid: 'user_abc').
-         * @deny (get) A user tries to read a message from another user's session: `get /users/user_xyz/chatSessions/session_456/chatMessages/msg_101` (auth.uid: 'user_abc').
-         * @principle Inherits ownership from the top-level path, securing deeply nested data without extra lookups.
          */
         match /chatMessages/{messageId} {
           allow get: if isOwner(userId);

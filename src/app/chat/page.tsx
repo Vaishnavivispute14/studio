@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useContext, createContext, type FormEvent } from 'react';
@@ -185,18 +184,19 @@ const ChatSidebar = () => {
 
   const chatSessionsQuery = useMemoFirebase(() => {
     if (!user || user.isAnonymous) return null;
+    // Simplified query to ensure readability and reliability
     return query(
       collection(firestore, 'users', user.uid, 'chatSessions'), 
-      where('isArchived', '!=', true),
-      orderBy('isArchived'),
       orderBy('createdAt', 'desc')
     );
   }, [firestore, user]);
 
   const { data: chatSessions, isLoading: sessionsLoading } = useCollection<ChatSession>(chatSessionsQuery);
 
-  const pinnedSessions = chatSessions?.filter(s => s.isPinned) || [];
-  const regularSessions = chatSessions?.filter(s => !s.isPinned) || [];
+  // Filter archived and handle pinning on the client side for better performance/reliability
+  const activeSessions = chatSessions?.filter(s => !s.isArchived) || [];
+  const pinnedSessions = activeSessions.filter(s => s.isPinned) || [];
+  const regularSessions = activeSessions.filter(s => !s.isPinned) || [];
 
   const groupedSessions = regularSessions.reduce((acc, session) => {
     if (!session.createdAt) return acc;
