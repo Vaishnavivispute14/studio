@@ -19,7 +19,7 @@ import {
   SidebarGroupLabel,
   SidebarSeparator,
 } from '@/components/ui/sidebar';
-import { Bot, MessageSquare, Plus, Search, Home, Compass, Library, History, LogOut, ChevronDown, User, SendHorizonal, Wand2, SearchCode } from 'lucide-react';
+import { Bot, MessageSquare, Plus, Search, Home, Compass, Library, History, LogOut, ChevronDown, User, SendHorizonal, Wand2, SearchCode, Sparkles } from 'lucide-react';
 import useAuthRedirect from '@/hooks/use-auth-redirect';
 import { ChatInterface } from '@/components/chat-interface';
 import { Input } from '@/components/ui/input';
@@ -67,6 +67,7 @@ const useChatState = () => {
 const ChatSidebar = () => {
   const { user, auth } = useFirebase();
   const { firestore } = useFirebase();
+  const { toast } = useToast();
   const router = useRouter();
   
   const handleLogout = () => {
@@ -104,6 +105,14 @@ const ChatSidebar = () => {
   const { setOpenMobile } = useSidebar();
   const { setSelectedChatId, selectedChatId, setGuestMessages } = useChatState();
 
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const filteredGroups = groupedSessions ? Object.entries(groupedSessions).reduce((acc, [group, sessions]) => {
+      const filtered = sessions.filter(s => s.title?.toLowerCase().includes(searchQuery.toLowerCase()));
+      if (filtered.length > 0) acc[group] = filtered;
+      return acc;
+  }, {} as Record<string, typeof chatSessions>) : null;
+
   return (
     <>
       <SidebarHeader>
@@ -111,29 +120,69 @@ const ChatSidebar = () => {
             <Bot className="h-8 w-8 text-primary" />
             <h1 className="text-2xl font-bold text-foreground font-headline ml-2">NexBot</h1>
         </div>
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search" className="pl-9 h-9" />
-        </div>
       </SidebarHeader>
       <SidebarContent>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton onClick={() => {
-                setSelectedChatId(null);
-                setGuestMessages([]);
-            }} isActive={selectedChatId === null}><Home /> Home</SidebarMenuButton>
-          </SidebarMenuItem>
-          <SidebarMenuItem>
-            <SidebarMenuButton disabled><Compass /> Explore</SidebarMenuButton>
-          </SidebarMenuItem>
-           <SidebarMenuItem>
-            <SidebarMenuButton disabled><Library /> Library</SidebarMenuButton>
-          </SidebarMenuItem>
-          <SidebarMenuItem>
-            <SidebarMenuButton disabled><History /> History</SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
+        <SidebarGroup>
+          <SidebarGroupLabel>Controls</SidebarGroupLabel>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton 
+                onClick={() => {
+                  setSelectedChatId(null);
+                  setGuestMessages([]);
+                  setOpenMobile(false);
+                }} 
+                isActive={selectedChatId === null}
+                className="font-semibold text-primary hover:bg-primary/10 transition-colors"
+              >
+                <Plus className="h-4 w-4" />
+                <span>New Chat</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            
+            <SidebarMenuItem>
+              <div className="relative px-2 py-1">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input 
+                  placeholder="Search chats" 
+                  className="pl-8 h-8 text-xs bg-muted/50 border-none focus-visible:ring-1 focus-visible:ring-primary" 
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+            </SidebarMenuItem>
+
+            <SidebarMenuItem>
+              <SidebarMenuButton 
+                onClick={() => toast({ title: "Deep Research", description: "Advanced research mode is active for your next query." })}
+                className="hover:bg-accent/50 transition-colors"
+              >
+                <SearchCode className="h-4 w-4" />
+                <span>Deep Research</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarGroup>
+
+        <SidebarSeparator />
+
+        <SidebarGroup>
+          <SidebarGroupLabel>History</SidebarGroupLabel>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton onClick={() => {
+                  setSelectedChatId(null);
+                  setGuestMessages([]);
+              }} isActive={selectedChatId === null}><Home /> Home</SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton disabled><Compass /> Explore</SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton disabled><History /> History</SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarGroup>
 
         <SidebarSeparator />
         
@@ -142,11 +191,10 @@ const ChatSidebar = () => {
                  <SidebarGroupLabel>Recent</SidebarGroupLabel>
                  <div className="h-8 w-full bg-muted animate-pulse rounded-md mt-2" />
                  <div className="h-8 w-full bg-muted animate-pulse rounded-md mt-2" />
-                 <div className="h-8 w-full bg-muted animate-pulse rounded-md mt-2" />
             </SidebarGroup>
         )}
 
-        {groupedSessions && Object.entries(groupedSessions).map(([group, sessions]) => (
+        {filteredGroups && Object.entries(filteredGroups).map(([group, sessions]) => (
             <SidebarGroup key={group}>
                 <SidebarGroupLabel>{group}</SidebarGroupLabel>
                 <SidebarMenu>
@@ -159,8 +207,8 @@ const ChatSidebar = () => {
                                   setOpenMobile(false);
                               }}
                             >
-                            <MessageSquare />
-                            <span>{session.title}</span>
+                            <MessageSquare className="h-4 w-4" />
+                            <span className="truncate">{session.title}</span>
                             </SidebarMenuButton>
                         </SidebarMenuItem>
                     ))}
@@ -181,9 +229,9 @@ const ChatSidebar = () => {
                               {user?.displayName ? user.displayName[0] : <User />}
                           </AvatarFallback>
                       </Avatar>
-                      <div className="flex flex-col items-start text-sm overflow-hidden">
-                          <span className="font-semibold truncate">{user?.displayName || (user?.isAnonymous ? 'Guest' : 'User')}</span>
-                          <span className="text-muted-foreground truncate">{user?.email}</span>
+                      <div className="flex flex-col items-start text-sm overflow-hidden text-left">
+                          <span className="font-semibold truncate w-full">{user?.displayName || (user?.isAnonymous ? 'Guest' : 'User')}</span>
+                          <span className="text-muted-foreground truncate w-full">{user?.email || (user?.isAnonymous ? 'Temporary session' : '')}</span>
                       </div>
                   </Button>
               </DropdownMenuTrigger>
@@ -242,6 +290,10 @@ const MainContentHeader = () => {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent>
                         <DropdownMenuItem>NexBot 4.0</DropdownMenuItem>
+                        <DropdownMenuItem disabled className="text-muted-foreground flex justify-between">
+                          <span>NexBot Pro</span>
+                          <Sparkles className="h-3 w-3 text-primary" />
+                        </DropdownMenuItem>
                     </DropdownMenuContent>
                 </DropdownMenu>
             </div>
