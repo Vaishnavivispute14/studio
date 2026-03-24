@@ -216,7 +216,21 @@ const ChatSidebar = () => {
   const [searchQuery, setSearchQuery] = useState("");
 
   const filteredPinned = pinnedSessions.filter(s => s.title?.toLowerCase().includes(searchQuery.toLowerCase()));
-  const filteredGroups = Object.entries(groupedSessions).reduce((acc, [group, sessions]) => {
+  const filteredGroups = Object.entries(regularSessions.reduce((acc, session) => {
+    if (!session.createdAt) return acc;
+    const date = new Date(session.createdAt.seconds * 1000);
+    const now = new Date();
+    const diffTime = Math.abs(now.getTime() - date.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    let group = 'Older';
+    if (diffDays <= 1) group = 'Today';
+    else if (diffDays <= 7) group = 'Previous 7 Days';
+
+    if(!acc[group]) acc[group] = [];
+    acc[group].push(session);
+    return acc;
+  }, {} as Record<string, ChatSession[]>)).reduce((acc, [group, sessions]) => {
       const filtered = sessions.filter(s => s.title?.toLowerCase().includes(searchQuery.toLowerCase()));
       if (filtered.length > 0) acc[group] = filtered;
       return acc;
@@ -559,7 +573,7 @@ const MainContentBody = () => {
     return (
         <main className="h-full flex flex-col justify-center items-center p-4 md:p-6 relative">
             <div className="w-full max-w-2xl animate-in fade-in slide-in-from-bottom-8 duration-700">
-                <h1 className="text-4xl md:text-5xl font-bold text-center mb-12 text-foreground font-poppins">
+                <h1 className="text-3xl md:text-4xl font-bold text-center mb-12 text-foreground font-poppins">
                     Hello, how can I assist you today?
                 </h1>
                 <div className="relative group">
