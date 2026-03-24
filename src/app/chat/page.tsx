@@ -212,8 +212,7 @@ const ChatSidebar = () => {
     return acc;
   }, {} as Record<string, ChatSession[]>);
 
-  const { setOpenMobile } = useSidebar();
-  const { setSelectedChatId, selectedChatId, setGuestMessages } = useChatState();
+  const { setSelectedChatId, selectedChatId } = useChatState();
   const [searchQuery, setSearchQuery] = useState("");
 
   const filteredPinned = pinnedSessions.filter(s => s.title?.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -235,21 +234,6 @@ const ChatSidebar = () => {
         <SidebarGroup>
           <SidebarGroupLabel>Controls</SidebarGroupLabel>
           <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton 
-                onClick={() => {
-                  setSelectedChatId(null);
-                  setGuestMessages([]);
-                  setOpenMobile(false);
-                }} 
-                isActive={selectedChatId === null}
-                className="font-semibold text-primary hover:bg-primary/10 transition-colors"
-              >
-                <Plus className="h-4 w-4" />
-                <span>New Chat</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            
             <SidebarMenuItem>
               <div className="relative px-2 py-1">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -280,10 +264,7 @@ const ChatSidebar = () => {
           <SidebarGroupLabel>Quick Nav</SidebarGroupLabel>
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton onClick={() => {
-                  setSelectedChatId(null);
-                  setGuestMessages([]);
-              }} isActive={selectedChatId === null}><Home /> Home</SidebarMenuButton>
+              <SidebarMenuButton onClick={() => setSelectedChatId(null)} isActive={selectedChatId === null}><Home /> Home</SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
               <SidebarMenuButton disabled><Compass /> Explore</SidebarMenuButton>
@@ -554,6 +535,9 @@ const MainContentBody = () => {
     return (
         <main className="h-full flex flex-col justify-center items-center p-4 md:p-6 relative">
             <div className="w-full max-w-4xl animate-in fade-in slide-in-from-bottom-8 duration-700">
+                <h1 className="text-4xl md:text-5xl font-bold text-center mb-12 text-foreground font-headline">
+                    Hello, how can I assist you?
+                </h1>
                 <div className="relative group">
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                         <Plus className="h-5 w-5 text-muted-foreground group-focus-within:text-primary transition-colors" />
