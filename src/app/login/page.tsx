@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth, useUser } from '@/firebase';
 import {
   createUserWithEmailAndPassword,
@@ -14,9 +14,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Eye, EyeOff } from 'lucide-react';
-import { cn } from '@/lib/utils';
 
-export default function LoginPage() {
+function LoginContent() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -27,9 +26,16 @@ export default function LoginPage() {
   const { user, isUserLoading } = useUser();
   const router = useRouter();
   const { toast } = useToast();
+  const searchParams = useSearchParams();
 
   useEffect(() => {
-    // Redirect only if user is fully logged in (not anonymous)
+    const mode = searchParams.get('mode');
+    if (mode === 'login') {
+      setAuthType('login');
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
     if (!isUserLoading && user && !user.isAnonymous) {
       router.push('/chat');
     }
@@ -51,7 +57,6 @@ export default function LoginPage() {
       } else {
         await signInWithEmailAndPassword(auth, email, password);
       }
-      // Successful login/signup will trigger the useEffect to redirect
     } catch (error: any) {
       toast({
         variant: 'destructive',
@@ -92,7 +97,6 @@ export default function LoginPage() {
 
   return (
     <main className="grid h-screen w-screen overflow-hidden md:grid-cols-2">
-      {/* Left Panel */}
       <div className="relative hidden items-center justify-center md:flex">
         <div className="absolute inset-0 auth-container" />
          <div className="absolute inset-0 bg-gradient-to-br from-background/40 via-transparent to-background/40" />
@@ -111,7 +115,6 @@ export default function LoginPage() {
          </div>
       </div>
 
-      {/* Right Panel */}
       <div className="flex flex-col justify-center p-8 md:p-12 bg-card">
         <div className="mx-auto w-full max-w-md">
           <h1 className="text-3xl font-bold text-foreground mb-2">
@@ -221,5 +224,13 @@ export default function LoginPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="flex h-screen w-full items-center justify-center bg-background"><div className="h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent"></div></div>}>
+      <LoginContent />
+    </Suspense>
   );
 }

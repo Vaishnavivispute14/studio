@@ -2,7 +2,7 @@
 
 import { useState, useContext, createContext, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import { collection, serverTimestamp, addDoc, query, orderBy, doc } from 'firebase/firestore';
+import { collection, serverTimestamp, addDoc, query, orderBy } from 'firebase/firestore';
 import { useFirebase, useUser, useCollection, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase';
 import {
   SidebarProvider,
@@ -32,6 +32,37 @@ import { useToast } from '@/hooks/use-toast';
 import { generateChatTitle } from '@/ai/flows/generate-chat-title';
 import { chatWithAi } from '@/ai/flows/chat-with-ai';
 
+type Message = {
+  id?: string;
+  senderType: "user" | "ai";
+  content: string;
+  timestamp?: any;
+};
+
+type ChatState = {
+  selectedChatId: string | null;
+  setSelectedChatId: (id: string | null) => void;
+  guestMessages: Message[];
+  setGuestMessages: React.Dispatch<React.SetStateAction<Message[]>>;
+}
+const ChatStateContext = createContext<ChatState | null>(null);
+
+const ChatStateProvider = ({ children }: { children: React.ReactNode }) => {
+    const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
+    const [guestMessages, setGuestMessages] = useState<Message[]>([]);
+    return (
+        <ChatStateContext.Provider value={{ selectedChatId, setSelectedChatId, guestMessages, setGuestMessages }}>
+            {children}
+        </ChatStateContext.Provider>
+    )
+}
+const useChatState = () => {
+    const context = useContext(ChatStateContext);
+    if (!context) {
+        throw new Error('useChatState must be used within a ChatStateProvider');
+    }
+    return context;
+}
 
 const ChatSidebar = () => {
   const { user, auth } = useFirebase();
@@ -46,7 +77,7 @@ const ChatSidebar = () => {
   };
 
   const chatSessionsQuery = useMemoFirebase(() => {
-    if (!user) return null;
+    if (!user || user.isAnonymous) return null;
     return query(collection(firestore, 'users', user.uid, 'chatSessions'), orderBy('createdAt', 'desc'));
   }, [firestore, user]);
 
@@ -71,7 +102,7 @@ const ChatSidebar = () => {
   }, {} as Record<string, typeof chatSessions>);
 
   const { setOpenMobile } = useSidebar();
-  const { setSelectedChatId, selectedChatId } = useChatState();
+  const { setSelectedChatId, selectedChatId, setGuestMessages } = useChatState();
 
   return (
     <>
@@ -88,7 +119,10 @@ const ChatSidebar = () => {
       <SidebarContent>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton onClick={() => setSelectedChatId(null)} isActive={selectedChatId === null}><Home /> Home</SidebarMenuButton>
+            <SidebarMenuButton onClick={() => {
+                setSelectedChatId(null);
+                setGuestMessages([]);
+            }} isActive={selectedChatId === null}><Home /> Home</SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
             <SidebarMenuButton disabled><Compass /> Explore</SidebarMenuButton>
@@ -169,10 +203,15 @@ const ChatSidebar = () => {
 const MainContentHeader = () => {
     const { user } = useUser();
     const { firestore } = useFirebase();
-    const { setSelectedChatId } = useChatState();
+    const { setSelectedChatId, setGuestMessages } = useChatState();
 
     const handleNewChat = async () => {
         if (!user) return;
+        if (user.isAnonymous) {
+            setGuestMessages([]);
+            setSelectedChatId('guest');
+            return;
+        }
         const newChatSession = {
             title: 'New Chat',
             userId: user.uid,
@@ -222,28 +261,6 @@ const MainContentHeader = () => {
     )
 }
 
-type ChatState = {
-  selectedChatId: string | null;
-  setSelectedChatId: (id: string | null) => void;
-}
-const ChatStateContext = createContext<ChatState | null>(null);
-
-const ChatStateProvider = ({ children }: { children: React.ReactNode }) => {
-    const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
-    return (
-        <ChatStateContext.Provider value={{ selectedChatId, setSelectedChatId }}>
-            {children}
-        </ChatStateContext.Provider>
-    )
-}
-const useChatState = () => {
-    const context = useContext(ChatStateContext);
-    if (!context) {
-        throw new Error('useChatState must be used within a ChatStateProvider');
-    }
-    return context;
-}
-
 export default function ChatPage() {
   useAuthRedirect('/login');
   const { user, isUserLoading } = useUser();
@@ -274,12 +291,11 @@ export default function ChatPage() {
 }
 
 const MainContentBody = () => {
-    const { selectedChatId, setSelectedChatId } = useChatState();
+    const { selectedChatId, setSelectedChatId, setGuestMessages } = useChatState();
     const { user } = useUser();
     const { firestore } = useFirebase();
     const { toast } = useToast();
 
-    // State for the welcome screen's input
     const [input, setInput] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const [mode, setMode] = useState<'reasoning' | 'deep_research' | null>(null);
@@ -293,7 +309,25 @@ const MainContentBody = () => {
         
         setInput("");
         setMode(null);
-        setIsLoading(true); // Disable form on this screen
+        setIsLoading(true);
+
+        if (user.isAnonymous) {
+            const initialMessages: Message[] = [
+                { senderType: "user", content: tempUserInput, timestamp: new Date() }
+            ];
+            setGuestMessages(initialMessages);
+            setSelectedChatId('guest');
+            setIsLoading(false);
+
+            // Execute AI response for guest
+            try {
+                const { response } = await chatWithAi({ message: tempUserInput, mode: currentMode });
+                setGuestMessages(prev => [...prev, { senderType: "ai", content: response, timestamp: new Date() }]);
+            } catch (err) {
+                console.error("Guest AI fail:", err);
+            }
+            return;
+        }
 
         try {
             const newChatSession = {
@@ -318,9 +352,8 @@ const MainContentBody = () => {
             };
             addDocumentNonBlocking(messagesCollection, userMessage);
             
-            setSelectedChatId(newChatId); // This will unmount the welcome screen and mount ChatInterface
+            setSelectedChatId(newChatId);
 
-            // background tasks
             generateChatTitle({ message: tempUserInput })
                 .then(({ title }) => {
                     if (title) {
@@ -345,7 +378,7 @@ const MainContentBody = () => {
              title: "Uh oh! Something went wrong.",
              description: "Could not start a new chat. Please try again.",
            });
-           setIsLoading(false); // Re-enable form if there was an error
+           setIsLoading(false);
         }
     };
 
@@ -364,7 +397,7 @@ const MainContentBody = () => {
                     <div className="absolute inset-0 rounded-full bg-primary/20 blur-2xl animate-pulse"></div>
                 </div>
                 <h1 className="text-3xl md:text-4xl font-bold text-foreground">
-                    Good Morning, {user?.displayName || 'User'}
+                    Good Morning, {user?.displayName || (user?.isAnonymous ? 'Guest' : 'User')}
                 </h1>
                 <h2 className="text-2xl md:text-3xl font-bold text-muted-foreground mt-2">
                     How Can I Assist You Today?

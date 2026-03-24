@@ -24,11 +24,11 @@ export function Navbar() {
   ];
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-8 py-2 backdrop-blur-md bg-black/50 border-b border-white/10">
+    <nav className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-8 py-3 backdrop-blur-md bg-black/60 border-b border-white/10 shadow-sm transition-all duration-300">
       <div className="flex items-center gap-2">
         <Link href="/" className="flex items-center gap-2 group">
           {mounted ? (
-            <Bot className="w-6 h-6 text-primary filter drop-shadow-[0_0_8px_rgba(168,85,247,0.6)] transition-transform group-hover:scale-110" />
+            <Bot className="w-6 h-6 text-primary filter drop-shadow-[0_0_8px_rgba(168,85,247,0.8)] transition-transform group-hover:scale-110" />
           ) : (
             <div className="w-6 h-6" />
           )}
@@ -57,8 +57,8 @@ export function Navbar() {
         <Button 
           variant="default" 
           size="sm" 
-          className="bg-primary/90 hover:bg-primary text-white font-semibold px-5 h-8 rounded-full text-xs shadow-lg shadow-primary/20"
-          onClick={() => router.push('/login')}
+          className="bg-primary/90 hover:bg-primary text-white font-semibold px-6 h-9 rounded-full text-xs shadow-lg shadow-primary/20 transition-all hover:scale-105 active:scale-95"
+          onClick={() => router.push('/login?mode=login')}
         >
           Log In
         </Button>

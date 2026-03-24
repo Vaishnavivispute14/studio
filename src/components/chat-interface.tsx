@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, type FormEvent } from "react";
+import { useState, useRef, useEffect, type FormEvent, useContext, createContext } from "react";
 import { chatWithAi } from "@/ai/flows/chat-with-ai";
 import { generateChatTitle } from "@/ai/flows/generate-chat-title";
 import { Button } from "@/components/ui/button";
@@ -32,6 +32,10 @@ type ChatInterfaceProps = {
   chatSessionId: string;
 };
 
+// Internal context to handle guest state shared with page.tsx if needed, 
+// but we'll use a local fallback here or expect context from parent.
+// For simplicity, we assume parent chat/page.tsx provides context for guest messages.
+
 export function ChatInterface({ chatSessionId }: ChatInterfaceProps) {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -40,21 +44,35 @@ export function ChatInterface({ chatSessionId }: ChatInterfaceProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { firestore, user } = useFirebase();
 
+  // Handle Guest Mode (Temporary State)
+  const isGuestSession = chatSessionId === 'guest';
+  
+  // These hooks are skipped for guest sessions
   const chatSessionRef = useMemoFirebase(() => {
-    if (!user || !chatSessionId) return null;
+    if (!user || !chatSessionId || isGuestSession) return null;
     return doc(firestore, `users/${user.uid}/chatSessions/${chatSessionId}`);
-  }, [firestore, user, chatSessionId]);
+  }, [firestore, user, chatSessionId, isGuestSession]);
+  
   const { data: chatSession } = useDoc<ChatSession>(chatSessionRef);
 
   const messagesQuery = useMemoFirebase(() => {
-    if (!user || !chatSessionId) return null;
+    if (!user || !chatSessionId || isGuestSession) return null;
     return query(
       collection(firestore, `users/${user.uid}/chatSessions/${chatSessionId}/chatMessages`),
       orderBy('timestamp', 'asc')
     );
-  }, [firestore, user, chatSessionId]);
+  }, [firestore, user, chatSessionId, isGuestSession]);
 
-  const { data: messages, isLoading: messagesLoading } = useCollection<Message>(messagesQuery);
+  const { data: firestoreMessages, isLoading: messagesLoading } = useCollection<Message>(messagesQuery);
+
+  // Guest State Management
+  const [localGuestMessages, setLocalGuestMessages] = useState<Message[]>([]);
+  
+  // Effect to pull initial guest messages from a global store if needed, 
+  // but for now we'll rely on local state if it's the first time mounting.
+  // Actually, in ChatPage we handle the first message for guests.
+  
+  const displayMessages = isGuestSession ? localGuestMessages : firestoreMessages;
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -62,17 +80,33 @@ export function ChatInterface({ chatSessionId }: ChatInterfaceProps) {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, isLoading]);
+  }, [displayMessages, isLoading]);
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!input.trim() || isLoading || !user || !chatSessionRef) return;
+    if (!input.trim() || isLoading || !user) return;
 
     const tempUserInput = input;
     const currentMode = mode;
     setInput("");
     setMode(null);
     setIsLoading(true);
+
+    if (isGuestSession) {
+        setLocalGuestMessages(prev => [...prev, { senderType: 'user', content: tempUserInput, timestamp: new Date() }]);
+        try {
+            const { response } = await chatWithAi({ message: tempUserInput, mode: currentMode });
+            setLocalGuestMessages(prev => [...prev, { senderType: 'ai', content: response, timestamp: new Date() }]);
+        } catch (err) {
+            console.error("Guest chat error:", err);
+            toast({ variant: "destructive", title: "Error", description: "AI response failed." });
+        } finally {
+            setIsLoading(false);
+        }
+        return;
+    }
+
+    if (!chatSessionRef) return;
 
     const messagesCollection = collection(firestore, `users/${user.uid}/chatSessions/${chatSessionId}/chatMessages`);
     
@@ -84,8 +118,7 @@ export function ChatInterface({ chatSessionId }: ChatInterfaceProps) {
     };
     addDocumentNonBlocking(messagesCollection, userMessage);
     
-    // If this is the first message of a new chat, generate and set the title.
-    if (chatSession?.title === 'New Chat' && (!messages || messages.length === 0)) {
+    if (chatSession?.title === 'New Chat' && (!firestoreMessages || firestoreMessages.length === 0)) {
         generateChatTitle({ message: tempUserInput })
             .then(({ title }) => {
                 if (title) {
@@ -94,7 +127,6 @@ export function ChatInterface({ chatSessionId }: ChatInterfaceProps) {
             })
             .catch(err => console.error("Failed to generate chat title:", err));
     }
-
 
     try {
       const { response } = await chatWithAi({ message: tempUserInput, mode: currentMode });
@@ -112,8 +144,6 @@ export function ChatInterface({ chatSessionId }: ChatInterfaceProps) {
         title: "Uh oh! Something went wrong.",
         description: "There was a problem with the AI response. Please try again.",
       });
-      // Optional: Re-add the failed user message to the input
-      // setInput(tempUserInput);
     } finally {
       setIsLoading(false);
     }
@@ -123,14 +153,14 @@ export function ChatInterface({ chatSessionId }: ChatInterfaceProps) {
     <div className="w-full max-w-4xl h-full flex flex-col">
       <ScrollArea className="flex-1 pr-4 -mr-4">
         <div className="space-y-8 pb-8">
-          {messagesLoading && messages?.length === 0 && (
+          {messagesLoading && !isGuestSession && (
             <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground pt-16">
                 <Bot className="w-12 h-12 animate-spin text-primary" />
             </div>
           )}
-          {messages?.map((message) => (
+          {displayMessages?.map((message, idx) => (
             <div
-              key={message.id}
+              key={message.id || idx}
               className={cn(
                 "flex items-start gap-4 animate-in fade-in-0 slide-in-from-bottom-4 duration-500",
                 message.senderType === "user" ? "justify-end" : "justify-start"
@@ -199,7 +229,7 @@ export function ChatInterface({ chatSessionId }: ChatInterfaceProps) {
                                 handleSubmit(e as unknown as FormEvent<HTMLFormElement>);
                                 }
                             }}
-                            disabled={isLoading || messagesLoading}
+                            disabled={isLoading || (messagesLoading && !isGuestSession)}
                             aria-label="Chat input"
                         />
                         <Button type="submit" size="icon" disabled={isLoading || !input.trim()} className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg">
