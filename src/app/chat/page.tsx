@@ -19,7 +19,7 @@ import {
   SidebarGroupLabel,
   SidebarSeparator,
 } from '@/components/ui/sidebar';
-import { Bot, MessageSquare, Plus, Search, Home, Compass, History, LogOut, ChevronDown, User, SendHorizonal, Wand2, SearchCode, Sparkles, MoreVertical, Pin, Archive, Trash2, Edit2, Check, X, Mic } from 'lucide-react';
+import { Bot, MessageSquare, Plus, Search, Home, Compass, History, LogOut, ChevronDown, User, SendHorizonal, Wand2, SearchCode, Sparkles, MoreVertical, Pin, Archive, Trash2, Edit2, Check, X, Mic, Upload, Image as ImageIcon, FileText } from 'lucide-react';
 import useAuthRedirect from '@/hooks/use-auth-redirect';
 import { ChatInterface } from '@/components/chat-interface';
 import { Input } from '@/components/ui/input';
@@ -443,6 +443,30 @@ const MainContentBody = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [mode, setMode] = useState<'reasoning' | 'deep_research' | null>(null);
 
+    const handleNewChat = async () => {
+        if (!user) return;
+        if (user.isAnonymous) {
+            setGuestMessages([]);
+            setSelectedChatId('guest');
+            return;
+        }
+        const newChatSession = {
+            title: 'New Chat',
+            userId: user.uid,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+        };
+        try {
+            const docRef = await addDoc(
+                collection(firestore, 'users', user.uid, 'chatSessions'),
+                newChatSession
+            );
+            setSelectedChatId(docRef.id);
+        } catch (error) {
+            console.error('Error creating new chat session:', error);
+        }
+    };
+
     const handleWelcomeSubmit = async (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         if (!input.trim() || isLoading || !user) return;
@@ -534,21 +558,41 @@ const MainContentBody = () => {
     
     return (
         <main className="h-full flex flex-col justify-center items-center p-4 md:p-6 relative">
-            <div className="w-full max-w-4xl animate-in fade-in slide-in-from-bottom-8 duration-700">
-                <h1 className="text-4xl md:text-5xl font-bold text-center mb-12 text-foreground font-headline">
-                    Hello, how can I assist you?
+            <div className="w-full max-w-2xl animate-in fade-in slide-in-from-bottom-8 duration-700">
+                <h1 className="text-4xl md:text-5xl font-bold text-center mb-12 text-foreground font-poppins">
+                    Hello, how can I assist you today?
                 </h1>
                 <div className="relative group">
-                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                        <Plus className="h-5 w-5 text-muted-foreground group-focus-within:text-primary transition-colors" />
-                    </div>
                     <form onSubmit={handleWelcomeSubmit}>
                         <div className="relative flex items-center">
+                            <div className="absolute left-2 z-10">
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button type="button" variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
+                                            <Plus className="h-5 w-5" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="start" className="w-48">
+                                        <DropdownMenuItem onClick={() => toast({ title: "Upload File", description: "Feature coming soon." })}>
+                                            <Upload className="mr-2 h-4 w-4" /> Upload File
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => toast({ title: "Attach Image", description: "Feature coming soon." })}>
+                                            <ImageIcon className="mr-2 h-4 w-4" /> Attach Image
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={handleNewChat}>
+                                            <Plus className="mr-2 h-4 w-4" /> Start New Chat
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => toast({ title: "Use Template", description: "Feature coming soon." })}>
+                                            <FileText className="mr-2 h-4 w-4" /> Use Template
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            </div>
                             <textarea
                                 value={input}
                                 onChange={(e) => setInput(e.target.value)}
                                 placeholder="Ask anything"
-                                className="block w-full rounded-full bg-muted/30 border border-white/10 py-4 pl-12 pr-28 text-lg ring-offset-background placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/30 transition-all resize-none overflow-hidden"
+                                className="block w-full rounded-full bg-muted/30 border border-white/10 py-4 pl-12 pr-16 text-lg ring-offset-background placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/30 transition-all resize-none overflow-hidden"
                                 rows={1}
                                 onKeyDown={(e) => {
                                     if (e.key === "Enter" && !e.shiftKey) {
@@ -559,10 +603,7 @@ const MainContentBody = () => {
                                 disabled={isLoading}
                                 aria-label="Chat input"
                             />
-                            <div className="absolute right-2 flex items-center gap-2 pr-2">
-                                <Button type="button" variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
-                                    <Mic className="h-5 w-5" />
-                                </Button>
+                            <div className="absolute right-2 flex items-center pr-2">
                                 <Button type="submit" size="icon" className="rounded-full bg-white text-black hover:bg-white/90 shadow-lg">
                                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                         <path d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM10 16.5V7.5L16 12L10 16.5Z" fill="currentColor"/>

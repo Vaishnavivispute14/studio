@@ -13,6 +13,7 @@ export default {
         body: ['"Inter"', 'sans-serif'],
         headline: ['"Cormorant Garamond"', 'serif'],
         code: ['"Roboto Mono"', 'monospace'],
+        poppins: ['"Poppins"', 'sans-serif'],
       },
       colors: {
         background: 'hsl(var(--background))',
