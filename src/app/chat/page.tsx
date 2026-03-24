@@ -606,7 +606,7 @@ const MainContentBody = () => {
                                 value={input}
                                 onChange={(e) => setInput(e.target.value)}
                                 placeholder="Ask anything"
-                                className="block w-full rounded-full bg-muted/30 border border-white/10 py-4 pl-12 pr-16 text-lg ring-offset-background placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/30 transition-all resize-none overflow-hidden"
+                                className="block w-full rounded-full bg-muted/30 border border-white/25 py-4 pl-12 pr-6 text-lg ring-offset-background placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/30 transition-all resize-none overflow-hidden"
                                 rows={1}
                                 onKeyDown={(e) => {
                                     if (e.key === "Enter" && !e.shiftKey) {
@@ -617,13 +617,6 @@ const MainContentBody = () => {
                                 disabled={isLoading}
                                 aria-label="Chat input"
                             />
-                            <div className="absolute right-2 flex items-center pr-2">
-                                <Button type="submit" size="icon" className="rounded-full bg-white text-black hover:bg-white/90 shadow-lg">
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                        <path d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM10 16.5V7.5L16 12L10 16.5Z" fill="currentColor"/>
-                                    </svg>
-                                </Button>
-                            </div>
                         </div>
                     </form>
                 </div>
