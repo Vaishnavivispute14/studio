@@ -196,22 +196,6 @@ const ChatSidebar = () => {
   const pinnedSessions = activeSessions.filter(s => s.isPinned) || [];
   const regularSessions = activeSessions.filter(s => !s.isPinned) || [];
 
-  const groupedSessions = regularSessions.reduce((acc, session) => {
-    if (!session.createdAt) return acc;
-    const date = new Date(session.createdAt.seconds * 1000);
-    const now = new Date();
-    const diffTime = Math.abs(now.getTime() - date.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-    let group = 'Older';
-    if (diffDays <= 1) group = 'Today';
-    else if (diffDays <= 7) group = 'Previous 7 Days';
-
-    if(!acc[group]) acc[group] = [];
-    acc[group].push(session);
-    return acc;
-  }, {} as Record<string, ChatSession[]>);
-
   const { setSelectedChatId, selectedChatId } = useChatState();
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -576,9 +560,9 @@ const MainContentBody = () => {
                 <h1 className="text-3xl md:text-4xl font-bold text-center mb-12 text-foreground font-poppins">
                     Hello, how can I assist you today?
                 </h1>
-                <div className="relative group">
+                <div className="relative group p-[1px] rounded-full bg-gradient-to-r from-primary/50 via-accent/30 to-primary/50 shadow-[0_0_20px_rgba(168,85,247,0.15)]">
                     <form onSubmit={handleWelcomeSubmit}>
-                        <div className="relative flex items-center">
+                        <div className="relative flex items-center bg-background/80 backdrop-blur-md rounded-full overflow-hidden">
                             <div className="absolute left-2 z-10">
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
@@ -606,7 +590,7 @@ const MainContentBody = () => {
                                 value={input}
                                 onChange={(e) => setInput(e.target.value)}
                                 placeholder="Ask anything"
-                                className="block w-full rounded-full bg-muted/30 border border-white/25 py-4 pl-12 pr-6 text-lg ring-offset-background placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/30 transition-all resize-none overflow-hidden"
+                                className="block w-full border-0 bg-transparent py-4 pl-12 pr-6 text-lg ring-offset-background placeholder:text-muted-foreground/50 focus:outline-none focus:ring-0 transition-all resize-none overflow-hidden"
                                 rows={1}
                                 onKeyDown={(e) => {
                                     if (e.key === "Enter" && !e.shiftKey) {
