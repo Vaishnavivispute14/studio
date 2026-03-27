@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useRef, useEffect, type FormEvent } from "react";
@@ -8,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Bot, User, SendHorizonal, Wand2, SearchCode, MoreVertical, Pin, Archive, Trash2 } from "lucide-react";
+import { Bot, User, SendHorizonal, Wand2, SearchCode, MoreHorizontal, Pin, Archive, Trash2, Copy, Check } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useFirebase, useCollection, useDoc, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
@@ -34,15 +33,17 @@ type ChatSession = {
 
 type ChatInterfaceProps = {
   chatSessionId: string;
+  initialInput?: string;
 };
 
-export function ChatInterface({ chatSessionId }: ChatInterfaceProps) {
-  const [input, setInput] = useState("");
+export function ChatInterface({ chatSessionId, initialInput }: ChatInterfaceProps) {
+  const [input, setInput] = useState(initialInput || "");
   const [isLoading, setIsLoading] = useState(false);
   const [mode, setMode] = useState<'reasoning' | 'deep_research' | null>(null);
   const { toast } = useToast();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { firestore, user } = useFirebase();
+  const [copiedId, setCopiedId] = useState<string | number | null>(null);
 
   // Handle Guest Mode (Temporary State)
   const isGuestSession = chatSessionId === 'guest';
@@ -93,6 +94,13 @@ export function ChatInterface({ chatSessionId }: ChatInterfaceProps) {
         toast({ variant: "destructive", title: "Deleted", description: "Chat session removed permanently." });
         break;
     }
+  };
+
+  const handleCopy = (content: string, id: string | number) => {
+    navigator.clipboard.writeText(content);
+    setCopiedId(id);
+    toast({ title: "Copied", description: "Message copied to clipboard." });
+    setTimeout(() => setCopiedId(null), 2000);
   };
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
@@ -164,13 +172,16 @@ export function ChatInterface({ chatSessionId }: ChatInterfaceProps) {
 
   return (
     <div className="w-full max-w-4xl h-full flex flex-col">
-      <div className="flex items-center justify-between mb-6 pb-2 border-b">
-        <h2 className="text-xl font-bold truncate pr-4">{isGuestSession ? 'Guest Session' : chatSession?.title}</h2>
+      <div className="flex items-center justify-between mb-4 pb-2 border-b">
+        <div className="flex items-center gap-2">
+           <Bot className="h-5 w-5 text-primary" />
+           <span className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">NexBot 4.0</span>
+        </div>
         {!isGuestSession && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon">
-                <MoreVertical className="h-5 w-5" />
+              <Button variant="ghost" size="icon" className="h-8 w-8">
+                <MoreHorizontal className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
@@ -211,15 +222,27 @@ export function ChatInterface({ chatSessionId }: ChatInterfaceProps) {
                   </AvatarFallback>
                 </Avatar>
               )}
-              <div
-                className={cn(
-                  "max-w-[75%] rounded-lg p-4 text-sm whitespace-pre-wrap shadow-sm",
-                  message.senderType === "user"
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-card"
-                )}
-              >
-                {message.content}
+              <div className="flex flex-col gap-1 max-w-[75%]">
+                <div
+                    className={cn(
+                    "rounded-2xl p-4 text-sm whitespace-pre-wrap shadow-sm",
+                    message.senderType === "user"
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-card"
+                    )}
+                >
+                    {message.content}
+                </div>
+                <div className={cn("flex mt-1", message.senderType === "user" ? "justify-end" : "justify-start")}>
+                    <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-6 w-6 text-muted-foreground hover:text-foreground opacity-50 hover:opacity-100 transition-opacity"
+                        onClick={() => handleCopy(message.content, message.id || idx)}
+                    >
+                        {copiedId === (message.id || idx) ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                    </Button>
+                </div>
               </div>
               {message.senderType === "user" && (
                 <Avatar className="w-8 h-8 border">
@@ -250,16 +273,16 @@ export function ChatInterface({ chatSessionId }: ChatInterfaceProps) {
       </ScrollArea>
 
       <div className="mt-auto pt-4">
-        <Card className="p-2 rounded-2xl shadow-lg">
+        <Card className="p-1 rounded-2xl shadow-sm">
             <CardContent className="p-0">
-                <form onSubmit={handleSubmit} className="flex flex-col gap-2">
+                <form onSubmit={handleSubmit} className="flex flex-col gap-1">
                     <div className="relative">
-                        <Wand2 className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                        <Wand2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <textarea
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
-                            placeholder="Initiate a query or send a command to the AI..."
-                            className="w-full resize-none border-0 bg-transparent pl-12 pr-12 py-3 text-sm focus:ring-0 focus-visible:ring-0"
+                            placeholder="Type a message..."
+                            className="w-full resize-none border-0 bg-transparent pl-10 pr-10 py-2.5 text-sm focus:ring-0 focus-visible:ring-0 min-h-[40px] max-h-[200px]"
                             rows={1}
                             onKeyDown={(e) => {
                                 if (e.key === "Enter" && !e.shiftKey) {
@@ -270,16 +293,16 @@ export function ChatInterface({ chatSessionId }: ChatInterfaceProps) {
                             disabled={isLoading || (messagesLoading && !isGuestSession)}
                             aria-label="Chat input"
                         />
-                        <Button type="submit" size="icon" disabled={isLoading || !input.trim()} className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg">
-                            <SendHorizonal />
+                        <Button type="submit" size="icon" disabled={isLoading || !input.trim()} className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 rounded-xl">
+                            <SendHorizonal className="h-4 w-4" />
                         </Button>
                     </div>
                      <div className="flex items-center gap-2 px-2 pb-1">
-                        <Button variant={mode === 'reasoning' ? 'secondary' : 'outline'} size="sm" className="text-xs gap-1.5" onClick={() => setMode(prev => prev === 'reasoning' ? null : 'reasoning')}>
-                           <Wand2 /> Reasoning
+                        <Button variant={mode === 'reasoning' ? 'secondary' : 'ghost'} size="sm" className="h-6 text-[10px] gap-1 px-2" onClick={() => setMode(prev => prev === 'reasoning' ? null : 'reasoning')}>
+                           <Wand2 className="h-3 w-3" /> Reasoning
                         </Button>
-                         <Button variant={mode === 'deep_research' ? 'secondary' : 'outline'} size="sm" className="text-xs gap-1.5" onClick={() => setMode(prev => prev === 'deep_research' ? null : 'deep_research')}>
-                           <SearchCode /> Deep Research
+                         <Button variant={mode === 'deep_research' ? 'secondary' : 'ghost'} size="sm" className="h-6 text-[10px] gap-1 px-2" onClick={() => setMode(prev => prev === 'deep_research' ? null : 'deep_research')}>
+                           <SearchCode className="h-3 w-3" /> Deep Research
                         </Button>
                     </div>
                 </form>

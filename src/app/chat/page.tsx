@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useContext, createContext, type FormEvent } from 'react';
+import { useState, useContext, createContext, type FormEvent, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { collection, serverTimestamp, addDoc, query, orderBy, where, doc } from 'firebase/firestore';
 import { useFirebase, useUser, useCollection, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
@@ -18,8 +18,9 @@ import {
   SidebarGroup,
   SidebarGroupLabel,
   SidebarSeparator,
+  SidebarTrigger,
 } from '@/components/ui/sidebar';
-import { Bot, MessageSquare, Plus, Search, Home, Compass, History, LogOut, ChevronDown, User, SendHorizonal, Wand2, SearchCode, Sparkles, MoreVertical, Pin, Archive, Trash2, Edit2, Check, X, Mic, Upload, Image as ImageIcon, FileText } from 'lucide-react';
+import { Bot, MessageSquare, Plus, Search, Home, Compass, History, LogOut, ChevronDown, User, SendHorizonal, Wand2, SearchCode, Sparkles, MoreHorizontal, Pin, Archive, Trash2, Edit2, Check, X, Mic, Upload, Image as ImageIcon, FileText } from 'lucide-react';
 import useAuthRedirect from '@/hooks/use-auth-redirect';
 import { ChatInterface } from '@/components/chat-interface';
 import { Input } from '@/components/ui/input';
@@ -27,7 +28,6 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { ThemeToggle } from '@/components/theme-toggle';
-import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { generateChatTitle } from '@/ai/flows/generate-chat-title';
 import { chatWithAi } from '@/ai/flows/chat-with-ai';
@@ -144,7 +144,7 @@ const ChatHistoryItem = ({ session, isSelected, onSelect }: { session: ChatSessi
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="h-7 w-7">
-                  <MoreVertical className="h-4 w-4" />
+                  <MoreHorizontal className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
@@ -228,7 +228,7 @@ const ChatSidebar = () => {
             <h1 className="text-2xl font-bold text-foreground font-headline ml-2">NexBot</h1>
         </div>
       </SidebarHeader>
-      <SidebarContent>
+      <SidebarContent className="scrollbar-thin">
         <SidebarGroup>
           <SidebarGroupLabel>Controls</SidebarGroupLabel>
           <SidebarMenu>
@@ -308,7 +308,6 @@ const ChatSidebar = () => {
       </SidebarContent>
       <SidebarFooter>
         <div className='flex items-center justify-center gap-2'>
-          <ThemeToggle />
           <DropdownMenu>
               <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="w-full justify-start items-center gap-3 p-2 h-auto">
@@ -369,6 +368,7 @@ const MainContentHeader = () => {
     return (
         <header className="sticky top-0 z-10 flex items-center justify-between p-4 border-b bg-background/50 backdrop-blur-sm">
             <div className="flex items-center gap-4">
+                <SidebarTrigger />
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                         <Button variant="ghost" className="font-semibold text-lg gap-2">
@@ -387,6 +387,7 @@ const MainContentHeader = () => {
                 </DropdownMenu>
             </div>
             <div className="flex items-center gap-2">
+                <ThemeToggle />
                 <Button variant="default" size="sm" onClick={handleNewChat} className="shadow-sm">
                     <Plus className="mr-2 h-4 w-4" />
                     New Chat
@@ -405,8 +406,13 @@ const MainContentHeader = () => {
 export default function ChatPage() {
   useAuthRedirect('/login');
   const { user, isUserLoading } = useUser();
+  const [mounted, setMounted] = useState(false);
 
-  if (isUserLoading || !user) {
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted || isUserLoading || !user) {
      return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
         <Bot className="h-12 w-12 animate-spin text-primary" />
@@ -417,7 +423,7 @@ export default function ChatPage() {
   return (
     <ChatStateProvider>
         <SidebarProvider>
-            <Sidebar collapsible="icon" variant="sidebar" side="left" className="border-r bg-sidebar-background">
+            <Sidebar collapsible="icon" variant="sidebar" side="left" className="border-r bg-muted/30">
                 <ChatSidebar />
             </Sidebar>
             <SidebarInset>
@@ -549,25 +555,25 @@ const MainContentBody = () => {
     if (selectedChatId) {
         return (
              <main className="flex-1 flex items-center justify-center p-4 md:p-6">
-                <ChatInterface key={selectedChatId} chatSessionId={selectedChatId} />
+                <ChatInterface key={selectedChatId} chatSessionId={selectedChatId} initialInput={input} />
             </main>
         );
     }
     
     return (
         <main className="h-full flex flex-col justify-center items-center p-4 md:p-6 relative">
-            <div className="w-full max-w-2xl animate-in fade-in slide-in-from-bottom-8 duration-700">
-                <h1 className="text-3xl md:text-4xl font-bold text-center mb-12 text-foreground font-poppins">
+            <div className="w-full max-w-xl animate-in fade-in slide-in-from-bottom-8 duration-700">
+                <h1 className="text-2xl md:text-3xl font-bold text-center mb-10 text-foreground font-poppins">
                     Hello, how can I assist you today?
                 </h1>
-                <div className="relative group p-[1px] rounded-full bg-gradient-to-r from-primary/50 via-accent/30 to-primary/50 shadow-[0_0_20px_rgba(168,85,247,0.15)]">
+                <div className="relative group p-[1px] rounded-2xl bg-gradient-to-r from-primary/50 via-accent/30 to-primary/50 shadow-sm">
                     <form onSubmit={handleWelcomeSubmit}>
-                        <div className="relative flex items-center bg-background/80 backdrop-blur-md rounded-full overflow-hidden">
+                        <div className="relative flex items-center bg-background/80 backdrop-blur-md rounded-2xl overflow-hidden">
                             <div className="absolute left-2 z-10">
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
-                                        <Button type="button" variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
-                                            <Plus className="h-5 w-5" />
+                                        <Button type="button" variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground h-8 w-8">
+                                            <Plus className="h-4 w-4" />
                                         </Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="start" className="w-48">
@@ -590,7 +596,7 @@ const MainContentBody = () => {
                                 value={input}
                                 onChange={(e) => setInput(e.target.value)}
                                 placeholder="Ask anything"
-                                className="block w-full border-0 bg-transparent py-4 pl-12 pr-6 text-lg ring-offset-background placeholder:text-muted-foreground/50 focus:outline-none focus:ring-0 transition-all resize-none overflow-hidden"
+                                className="block w-full border-0 bg-transparent py-3 pl-10 pr-4 text-base ring-offset-background placeholder:text-muted-foreground/50 focus:outline-none focus:ring-0 transition-all resize-none overflow-hidden min-h-[44px]"
                                 rows={1}
                                 onKeyDown={(e) => {
                                     if (e.key === "Enter" && !e.shiftKey) {
