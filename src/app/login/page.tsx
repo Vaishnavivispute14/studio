@@ -13,7 +13,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, Bot, AlertCircle } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 function LoginContent() {
   const [email, setEmail] = useState('');
@@ -21,6 +22,7 @@ function LoginContent() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [authType, setAuthType] = useState<'login' | 'signup'>('signup');
+  const [error, setError] = useState<string | null>(null);
 
   const auth = useAuth();
   const { user, isUserLoading } = useUser();
@@ -42,12 +44,9 @@ function LoginContent() {
   }, [user, isUserLoading, router]);
 
   const handleAuthAction = async (action: 'login' | 'signup') => {
-     if (!email || !password) {
-      toast({
-        variant: 'destructive',
-        title: 'Missing Fields',
-        description: 'Please enter both email and password.',
-      });
+    setError(null);
+    if (!email || !password) {
+      setError('Please enter both email and password.');
       return;
     }
     setIsSubmitting(true);
@@ -58,30 +57,23 @@ function LoginContent() {
         await signInWithEmailAndPassword(auth, email, password);
       }
     } catch (error: any) {
-      toast({
-        variant: 'destructive',
-        title: 'Authentication Failed',
-        description:
-          error.code === 'auth/invalid-credential'
-            ? 'Invalid email or password.'
-            : error.message || 'An unexpected error occurred.',
-      });
+      const message = error.code === 'auth/invalid-credential'
+        ? 'Invalid email or password.'
+        : error.message || 'An unexpected error occurred.';
+      setError(message);
     } finally {
       setIsSubmitting(false);
     }
   }
 
   const handleGuestLogin = async () => {
+    setError(null);
     setIsSubmitting(true);
     try {
       await signInAnonymously(auth);
       router.push('/chat');
     } catch (error: any) {
-       toast({
-        variant: 'destructive',
-        title: 'Guest Login Failed',
-        description: error.message || 'An unexpected error occurred.',
-      });
+      setError(error.message || 'An unexpected guest login error occurred.');
     } finally {
       setIsSubmitting(false);
     }
@@ -101,15 +93,16 @@ function LoginContent() {
         <div className="absolute inset-0 auth-container" />
          <div className="absolute inset-0 bg-gradient-to-br from-background/40 via-transparent to-background/40" />
         <div className="relative z-10 flex flex-col justify-center h-full p-12 text-white">
-           <div>
-             <h1 className="text-5xl font-bold font-headline mb-8 tracking-wide">NexBot</h1>
+           <div className="flex items-center gap-4 mb-8">
+             <Bot className="h-12 w-12 filter drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]" />
+             <h1 className="text-5xl font-bold font-headline tracking-wide">NexBot</h1>
            </div>
            <div className="space-y-4">
              <h2 className="text-4xl font-bold leading-tight">
                Engage with the future of conversation.
              </h2>
               <p className="font-light text-white/80 text-lg">
-                Your personal AI assistant for instant answers, creative ideas, and seamless conversation.
+                Your intelligent AI companion for smart conversations and instant solutions.
              </p>
            </div>
          </div>
@@ -127,6 +120,13 @@ function LoginContent() {
           </p>
 
           <form onSubmit={(e) => { e.preventDefault(); handleAuthAction(authType); }} className="space-y-4">
+            {error && (
+              <Alert variant="destructive" className="mb-4">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+            
             <div className="space-y-2">
               <Label htmlFor="email">Your email</Label>
               <Input
@@ -214,6 +214,7 @@ function LoginContent() {
                   setAuthType(authType === 'login' ? 'signup' : 'login');
                   setEmail('');
                   setPassword('');
+                  setError(null);
                 }}
                 className="ml-1 font-semibold text-primary hover:underline"
               >

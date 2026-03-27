@@ -8,37 +8,37 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const auth = useAuth();
   const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setError(null);
+    setSuccess(null);
+    
     if (!email) {
-      toast({
-        variant: 'destructive',
-        title: 'Email Required',
-        description: 'Please enter your email address.',
-      });
+      setError('Please enter your email address.');
       return;
     }
+    
     setIsSubmitting(true);
     try {
       await sendPasswordResetEmail(auth, email);
+      setSuccess('Password reset link has been sent to your email.');
       toast({
-        title: 'Password Reset Email Sent',
-        description: 'Check your inbox for a link to reset your password.',
+        title: 'Email Sent',
+        description: 'Check your inbox for password reset instructions.',
       });
-    } catch (error: any) {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: error.message || 'Failed to send password reset email.',
-      });
+    } catch (err: any) {
+      setError(err.message || 'Failed to send password reset email. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -58,6 +58,20 @@ export default function ForgotPasswordPage() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {error && (
+            <Alert variant="destructive" className="mb-4">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
+          {success && (
+            <Alert className="mb-4 border-green-500 text-green-600 bg-green-50 dark:bg-green-950/20 dark:text-green-400">
+              <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
+              <AlertDescription>{success}</AlertDescription>
+            </Alert>
+          )}
+
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
             <Input
