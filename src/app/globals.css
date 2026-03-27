@@ -127,6 +127,20 @@
   }
 
   /* Force visible scrollbar for sidebar */
+  .scrollbar-visible::-webkit-scrollbar {
+    width: 6px;
+    display: block;
+  }
+  .scrollbar-visible::-webkit-scrollbar-track {
+    @apply bg-muted/20;
+  }
+  .scrollbar-visible::-webkit-scrollbar-thumb {
+    @apply bg-muted-foreground/30 rounded-full;
+  }
+  .scrollbar-visible::-webkit-scrollbar-thumb:hover {
+    @apply bg-muted-foreground/50;
+  }
+  
   .scrollbar-thin::-webkit-scrollbar {
     width: 4px;
   }
@@ -135,8 +149,5 @@
   }
   .scrollbar-thin::-webkit-scrollbar-thumb {
     @apply bg-muted-foreground/20 rounded-full;
-  }
-  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-    @apply bg-muted-foreground/30;
   }
 }

@@ -7,12 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Bot, User, SendHorizonal, Wand2, SearchCode, MoreHorizontal, Pin, Archive, Trash2, Copy, Check } from "lucide-react";
+import { Bot, User, SendHorizonal, Wand2, SearchCode, Copy, Check } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { useFirebase, useCollection, useDoc, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
+import { useFirebase, useCollection, useDoc, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase';
 import { collection, query, orderBy, serverTimestamp, doc } from 'firebase/firestore';
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 
 type Message = {
   id?: string;
@@ -76,25 +75,6 @@ export function ChatInterface({ chatSessionId, initialInput }: ChatInterfaceProp
   useEffect(() => {
     scrollToBottom();
   }, [displayMessages, isLoading]);
-
-  const handleAction = (action: 'pin' | 'archive' | 'delete') => {
-    if (!user || !chatSessionRef) return;
-    
-    switch (action) {
-      case 'pin':
-        updateDocumentNonBlocking(chatSessionRef, { isPinned: !chatSession?.isPinned });
-        toast({ title: chatSession?.isPinned ? "Unpinned" : "Pinned", description: `Chat session ${chatSession?.isPinned ? 'unpinned' : 'pinned'}.` });
-        break;
-      case 'archive':
-        updateDocumentNonBlocking(chatSessionRef, { isArchived: !chatSession?.isArchived });
-        toast({ title: chatSession?.isArchived ? "Unarchived" : "Archived", description: `Chat session ${chatSession?.isArchived ? 'unarchived' : 'archived'}.` });
-        break;
-      case 'delete':
-        deleteDocumentNonBlocking(chatSessionRef);
-        toast({ variant: "destructive", title: "Deleted", description: "Chat session removed permanently." });
-        break;
-    }
-  };
 
   const handleCopy = (content: string, id: string | number) => {
     navigator.clipboard.writeText(content);
@@ -172,35 +152,7 @@ export function ChatInterface({ chatSessionId, initialInput }: ChatInterfaceProp
 
   return (
     <div className="w-full max-w-4xl h-full flex flex-col">
-      <div className="flex items-center justify-between mb-4 pb-2 border-b">
-        <div className="flex items-center gap-2">
-           <Bot className="h-5 w-5 text-primary" />
-           <span className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">NexBot 4.0</span>
-        </div>
-        {!isGuestSession && (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8">
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem onClick={() => handleAction('pin')}>
-                <Pin className="mr-2 h-4 w-4" /> {chatSession?.isPinned ? 'Unpin Chat' : 'Pin Chat'}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleAction('archive')}>
-                <Archive className="mr-2 h-4 w-4" /> Archive
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => handleAction('delete')} className="text-destructive">
-                <Trash2 className="mr-2 h-4 w-4" /> Delete
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
-      </div>
-
-      <ScrollArea className="flex-1 pr-4 -mr-4">
+      <ScrollArea className="flex-1 pr-4 -mr-4 pt-4">
         <div className="space-y-8 pb-8">
           {messagesLoading && !isGuestSession && (
             <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground pt-16">
@@ -272,7 +224,7 @@ export function ChatInterface({ chatSessionId, initialInput }: ChatInterfaceProp
         </div>
       </ScrollArea>
 
-      <div className="mt-auto pt-4">
+      <div className="mt-auto pt-4 pb-4">
         <Card className="p-1 rounded-2xl shadow-sm">
             <CardContent className="p-0">
                 <form onSubmit={handleSubmit} className="flex flex-col gap-1">
@@ -281,7 +233,7 @@ export function ChatInterface({ chatSessionId, initialInput }: ChatInterfaceProp
                         <textarea
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
-                            placeholder="Type a message..."
+                            placeholder="Ask anything"
                             className="w-full resize-none border-0 bg-transparent pl-10 pr-10 py-2.5 text-sm focus:ring-0 focus-visible:ring-0 min-h-[40px] max-h-[200px]"
                             rows={1}
                             onKeyDown={(e) => {

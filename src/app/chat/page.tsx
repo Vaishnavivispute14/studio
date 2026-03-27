@@ -2,8 +2,8 @@
 
 import { useState, useContext, createContext, type FormEvent, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { collection, serverTimestamp, addDoc, query, orderBy, where, doc } from 'firebase/firestore';
-import { useFirebase, useUser, useCollection, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
+import { collection, serverTimestamp, addDoc, query, orderBy, doc } from 'firebase/firestore';
+import { useFirebase, useUser, useCollection, useDoc, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
 import {
   SidebarProvider,
   Sidebar,
@@ -20,7 +20,7 @@ import {
   SidebarSeparator,
   SidebarTrigger,
 } from '@/components/ui/sidebar';
-import { Bot, MessageSquare, Plus, Search, Home, Compass, History, LogOut, ChevronDown, User, SendHorizonal, Wand2, SearchCode, Sparkles, MoreHorizontal, Pin, Archive, Trash2, Edit2, Check, X, Mic, Upload, Image as ImageIcon, FileText } from 'lucide-react';
+import { Bot, MessageSquare, Plus, Search, Home, Compass, History, LogOut, ChevronDown, User, SearchCode, Sparkles, MoreHorizontal, Pin, Archive, Trash2, Edit2, Check, X, Upload, Image as ImageIcon, FileText } from 'lucide-react';
 import useAuthRedirect from '@/hooks/use-auth-redirect';
 import { ChatInterface } from '@/components/chat-interface';
 import { Input } from '@/components/ui/input';
@@ -228,9 +228,9 @@ const ChatSidebar = () => {
             <h1 className="text-2xl font-bold text-foreground font-headline ml-2">NexBot</h1>
         </div>
       </SidebarHeader>
-      <SidebarContent className="scrollbar-thin">
+      <SidebarContent className="scrollbar-thin scrollbar-visible">
         <SidebarGroup>
-          <SidebarGroupLabel>Controls</SidebarGroupLabel>
+          <SidebarGroupLabel>Search Chats</SidebarGroupLabel>
           <SidebarMenu>
             <SidebarMenuItem>
               <div className="relative px-2 py-1">
@@ -243,32 +243,23 @@ const ChatSidebar = () => {
                 />
               </div>
             </SidebarMenuItem>
-
-            <SidebarMenuItem>
-              <SidebarMenuButton 
-                onClick={() => toast({ title: "Deep Research", description: "Advanced research mode is active for your next query." })}
-                className="hover:bg-accent/50 transition-colors"
-              >
-                <SearchCode className="h-4 w-4" />
-                <span>Deep Research</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
           </SidebarMenu>
         </SidebarGroup>
 
         <SidebarSeparator />
 
         <SidebarGroup>
-          <SidebarGroupLabel>Quick Nav</SidebarGroupLabel>
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton onClick={() => setSelectedChatId(null)} isActive={selectedChatId === null}><Home /> Home</SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <SidebarMenuButton disabled><Compass /> Explore</SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton disabled><History /> History</SidebarMenuButton>
+              <SidebarMenuButton 
+                onClick={() => toast({ title: "Deep Research", description: "Advanced research mode is active for your next query." })}
+              >
+                <SearchCode className="h-4 w-4" />
+                <span>Deep Research</span>
+              </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
         </SidebarGroup>
@@ -337,9 +328,37 @@ const ChatSidebar = () => {
 }
 
 const MainContentHeader = () => {
-    const { user } = useUser();
-    const { firestore } = useFirebase();
-    const { setSelectedChatId, setGuestMessages } = useChatState();
+    const { user, firestore } = useFirebase();
+    const { toast } = useToast();
+    const { setSelectedChatId, setGuestMessages, selectedChatId } = useChatState();
+
+    const isGuest = selectedChatId === 'guest';
+    const chatSessionRef = useMemoFirebase(() => {
+        if (!user || !selectedChatId || isGuest) return null;
+        return doc(firestore, `users/${user.uid}/chatSessions/${selectedChatId}`);
+    }, [firestore, user, selectedChatId, isGuest]);
+    
+    const { data: chatSession } = useDoc<ChatSession>(chatSessionRef);
+
+    const handleAction = (action: 'pin' | 'archive' | 'delete') => {
+        if (!user || !chatSessionRef || !chatSession) return;
+        
+        switch (action) {
+          case 'pin':
+            updateDocumentNonBlocking(chatSessionRef, { isPinned: !chatSession.isPinned });
+            toast({ title: chatSession.isPinned ? "Unpinned" : "Pinned", description: `Chat session ${chatSession.isPinned ? 'unpinned' : 'pinned'}.` });
+            break;
+          case 'archive':
+            updateDocumentNonBlocking(chatSessionRef, { isArchived: !chatSession.isArchived });
+            toast({ title: chatSession.isArchived ? "Unarchived" : "Archived", description: `Chat session ${chatSession.isArchived ? 'unarchived' : 'archived'}.` });
+            break;
+          case 'delete':
+            deleteDocumentNonBlocking(chatSessionRef);
+            setSelectedChatId(null);
+            toast({ variant: "destructive", title: "Deleted", description: "Chat session removed permanently." });
+            break;
+        }
+    };
 
     const handleNewChat = async () => {
         if (!user) return;
@@ -366,13 +385,13 @@ const MainContentHeader = () => {
     };
 
     return (
-        <header className="sticky top-0 z-10 flex items-center justify-between p-4 border-b bg-background/50 backdrop-blur-sm">
+        <header className="sticky top-0 z-10 flex items-center justify-between p-4 border-b bg-background/50 backdrop-blur-sm h-[64px]">
             <div className="flex items-center gap-4">
                 <SidebarTrigger />
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                         <Button variant="ghost" className="font-semibold text-lg gap-2">
-                            <Bot />
+                            <Bot className="h-5 w-5 text-primary" />
                             NexBot 4.0
                             <ChevronDown className="h-4 w-4" />
                         </Button>
@@ -388,11 +407,32 @@ const MainContentHeader = () => {
             </div>
             <div className="flex items-center gap-2">
                 <ThemeToggle />
+                {selectedChatId && !isGuest && (
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-9 w-9">
+                                <MoreHorizontal className="h-5 w-5" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-48">
+                            <DropdownMenuItem onClick={() => handleAction('pin')}>
+                                <Pin className="mr-2 h-4 w-4" /> {chatSession?.isPinned ? 'Unpin Chat' : 'Pin Chat'}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleAction('archive')}>
+                                <Archive className="mr-2 h-4 w-4" /> Archive
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => handleAction('delete')} className="text-destructive">
+                                <Trash2 className="mr-2 h-4 w-4" /> Delete
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                )}
                 <Button variant="default" size="sm" onClick={handleNewChat} className="shadow-sm">
                     <Plus className="mr-2 h-4 w-4" />
                     New Chat
                 </Button>
-                 <Avatar className="h-8 w-8">
+                 <Avatar className="h-8 w-8 ml-2">
                      <AvatarImage src={user?.photoURL || ''} />
                     <AvatarFallback className="bg-primary text-primary-foreground">
                         {user?.displayName ? user.displayName[0] : <User />}
@@ -423,7 +463,7 @@ export default function ChatPage() {
   return (
     <ChatStateProvider>
         <SidebarProvider>
-            <Sidebar collapsible="icon" variant="sidebar" side="left" className="border-r bg-muted/30">
+            <Sidebar collapsible="icon" variant="sidebar" side="left" className="border-r bg-muted/40">
                 <ChatSidebar />
             </Sidebar>
             <SidebarInset>
@@ -446,30 +486,6 @@ const MainContentBody = () => {
     const [input, setInput] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const [mode, setMode] = useState<'reasoning' | 'deep_research' | null>(null);
-
-    const handleNewChat = async () => {
-        if (!user) return;
-        if (user.isAnonymous) {
-            setGuestMessages([]);
-            setSelectedChatId('guest');
-            return;
-        }
-        const newChatSession = {
-            title: 'New Chat',
-            userId: user.uid,
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp(),
-        };
-        try {
-            const docRef = await addDoc(
-                collection(firestore, 'users', user.uid, 'chatSessions'),
-                newChatSession
-            );
-            setSelectedChatId(docRef.id);
-        } catch (error) {
-            console.error('Error creating new chat session:', error);
-        }
-    };
 
     const handleWelcomeSubmit = async (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -583,7 +599,7 @@ const MainContentBody = () => {
                                         <DropdownMenuItem onClick={() => toast({ title: "Attach Image", description: "Feature coming soon." })}>
                                             <ImageIcon className="mr-2 h-4 w-4" /> Attach Image
                                         </DropdownMenuItem>
-                                        <DropdownMenuItem onClick={handleNewChat}>
+                                        <DropdownMenuItem onClick={() => setSelectedChatId(null)}>
                                             <Plus className="mr-2 h-4 w-4" /> Start New Chat
                                         </DropdownMenuItem>
                                         <DropdownMenuItem onClick={() => toast({ title: "Use Template", description: "Feature coming soon." })}>
