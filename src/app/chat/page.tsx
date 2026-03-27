@@ -55,14 +55,22 @@ type ChatState = {
   setSelectedChatId: (id: string | null) => void;
   guestMessages: Message[];
   setGuestMessages: React.Dispatch<React.SetStateAction<Message[]>>;
+  isGuestLoading: boolean;
+  setIsGuestLoading: React.Dispatch<React.SetStateAction<boolean>>;
 }
 const ChatStateContext = createContext<ChatState | null>(null);
 
 const ChatStateProvider = ({ children }: { children: React.ReactNode }) => {
     const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
     const [guestMessages, setGuestMessages] = useState<Message[]>([]);
+    const [isGuestLoading, setIsGuestLoading] = useState(false);
+
     return (
-        <ChatStateContext.Provider value={{ selectedChatId, setSelectedChatId, guestMessages, setGuestMessages }}>
+        <ChatStateContext.Provider value={{ 
+            selectedChatId, setSelectedChatId, 
+            guestMessages, setGuestMessages,
+            isGuestLoading, setIsGuestLoading
+        }}>
             {children}
         </ChatStateContext.Provider>
     )
@@ -478,7 +486,11 @@ export default function ChatPage() {
 }
 
 const MainContentBody = () => {
-    const { selectedChatId, setSelectedChatId, setGuestMessages } = useChatState();
+    const { 
+        selectedChatId, setSelectedChatId, 
+        guestMessages, setGuestMessages,
+        isGuestLoading, setIsGuestLoading
+    } = useChatState();
     const { user } = useUser();
     const { firestore } = useFirebase();
     const { toast } = useToast();
@@ -503,6 +515,7 @@ const MainContentBody = () => {
                 { senderType: "user", content: tempUserInput, timestamp: new Date() }
             ];
             setGuestMessages(initialMessages);
+            setIsGuestLoading(true);
             setSelectedChatId('guest');
             setIsLoading(false);
 
@@ -511,6 +524,9 @@ const MainContentBody = () => {
                 setGuestMessages(prev => [...prev, { senderType: "ai", content: response, timestamp: new Date() }]);
             } catch (err) {
                 console.error("Guest AI fail:", err);
+                toast({ variant: "destructive", title: "Error", description: "Something went wrong. Please try again." });
+            } finally {
+                setIsGuestLoading(false);
             }
             return;
         }
@@ -562,8 +578,9 @@ const MainContentBody = () => {
            toast({
              variant: "destructive",
              title: "Uh oh! Something went wrong.",
-             description: "Could not start a new chat. Please try again.",
+             description: "Something went wrong. Please try again.",
            });
+        } finally {
            setIsLoading(false);
         }
     };
@@ -571,7 +588,15 @@ const MainContentBody = () => {
     if (selectedChatId) {
         return (
              <main className="flex-1 flex items-center justify-center p-4 md:p-6">
-                <ChatInterface key={selectedChatId} chatSessionId={selectedChatId} initialInput={input} />
+                <ChatInterface 
+                    key={selectedChatId} 
+                    chatSessionId={selectedChatId} 
+                    initialInput={input}
+                    initialGuestMessages={guestMessages}
+                    onGuestMessagesChange={setGuestMessages}
+                    isGuestLoading={isGuestLoading}
+                    onGuestLoadingChange={setIsGuestLoading}
+                />
             </main>
         );
     }

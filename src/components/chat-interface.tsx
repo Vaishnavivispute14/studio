@@ -33,19 +33,60 @@ type ChatSession = {
 type ChatInterfaceProps = {
   chatSessionId: string;
   initialInput?: string;
+  initialGuestMessages?: Message[];
+  onGuestMessagesChange?: (msgs: Message[] | ((prev: Message[]) => Message[])) => void;
+  isGuestLoading?: boolean;
+  onGuestLoadingChange?: (loading: boolean) => void;
 };
 
-export function ChatInterface({ chatSessionId, initialInput }: ChatInterfaceProps) {
+export function ChatInterface({ 
+    chatSessionId, 
+    initialInput, 
+    initialGuestMessages, 
+    onGuestMessagesChange,
+    isGuestLoading,
+    onGuestLoadingChange 
+}: ChatInterfaceProps) {
   const [input, setInput] = useState(initialInput || "");
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(isGuestLoading || false);
   const [mode, setMode] = useState<'reasoning' | 'deep_research' | null>(null);
   const { toast } = useToast();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { firestore, user } = useFirebase();
   const [copiedId, setCopiedId] = useState<string | number | null>(null);
 
-  // Handle Guest Mode (Temporary State)
   const isGuestSession = chatSessionId === 'guest';
+
+  // Sync loading state from props for guests
+  useEffect(() => {
+    if (isGuestSession && isGuestLoading !== undefined) {
+      setIsLoading(isGuestLoading);
+    }
+  }, [isGuestLoading, isGuestSession]);
+
+  const setLocalIsLoading = (val: boolean) => {
+    setIsLoading(val);
+    if (isGuestSession && onGuestLoadingChange) {
+        onGuestLoadingChange(val);
+    }
+  };
+
+  const [localGuestMessages, setLocalGuestMessages] = useState<Message[]>(initialGuestMessages || []);
+
+  // Sync messages from props for guests
+  useEffect(() => {
+    if (isGuestSession && initialGuestMessages) {
+        setLocalGuestMessages(initialGuestMessages);
+    }
+  }, [initialGuestMessages, isGuestSession]);
+
+  const updateGuestMessages = (updater: any) => {
+    if (isGuestSession && onGuestMessagesChange) {
+        onGuestMessagesChange(updater);
+    } else {
+        setLocalGuestMessages(updater);
+    }
+  };
   
   const chatSessionRef = useMemoFirebase(() => {
     if (!user || !chatSessionId || isGuestSession) return null;
@@ -63,8 +104,6 @@ export function ChatInterface({ chatSessionId, initialInput }: ChatInterfaceProp
   }, [firestore, user, chatSessionId, isGuestSession]);
 
   const { data: firestoreMessages, isLoading: messagesLoading } = useCollection<Message>(messagesQuery);
-
-  const [localGuestMessages, setLocalGuestMessages] = useState<Message[]>([]);
   
   const displayMessages = isGuestSession ? localGuestMessages : firestoreMessages;
 
@@ -91,18 +130,18 @@ export function ChatInterface({ chatSessionId, initialInput }: ChatInterfaceProp
     const currentMode = mode;
     setInput("");
     setMode(null);
-    setIsLoading(true);
+    setLocalIsLoading(true);
 
     if (isGuestSession) {
-        setLocalGuestMessages(prev => [...prev, { senderType: 'user', content: tempUserInput, timestamp: new Date() }]);
+        updateGuestMessages(prev => [...prev, { senderType: 'user', content: tempUserInput, timestamp: new Date() }]);
         try {
             const { response } = await chatWithAi({ message: tempUserInput, mode: currentMode });
-            setLocalGuestMessages(prev => [...prev, { senderType: 'ai', content: response, timestamp: new Date() }]);
+            updateGuestMessages(prev => [...prev, { senderType: 'ai', content: response, timestamp: new Date() }]);
         } catch (err) {
             console.error("Guest chat error:", err);
-            toast({ variant: "destructive", title: "Error", description: "AI response failed." });
+            toast({ variant: "destructive", title: "Error", description: "Something went wrong. Please try again." });
         } finally {
-            setIsLoading(false);
+            setLocalIsLoading(false);
         }
         return;
     }
@@ -143,10 +182,10 @@ export function ChatInterface({ chatSessionId, initialInput }: ChatInterfaceProp
       toast({
         variant: "destructive",
         title: "Uh oh! Something went wrong.",
-        description: "There was a problem with the AI response. Please try again.",
+        description: "Something went wrong. Please try again.",
       });
     } finally {
-      setIsLoading(false);
+      setLocalIsLoading(false);
     }
   };
 
