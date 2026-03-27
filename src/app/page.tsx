@@ -24,11 +24,11 @@ export default function HomePage() {
           ></iframe>
           {/* Subtle overlay to help text readability without losing image clarity */}
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/20 pointer-events-none">
-            <div className="relative z-10 text-center p-4 pointer-events-auto">
-              <h1 className="text-6xl md:text-8xl font-bold text-white mb-4 animate-in fade-in slide-in-from-bottom-4 duration-1000 font-headline tracking-tight drop-shadow-[0_2px_10px_rgba(0,0,0,0.5)]">
+            <div className="relative z-10 text-center p-4 pointer-events-auto transform translate-y-12">
+              <h1 className="text-5xl md:text-7xl font-bold text-white mb-4 animate-in fade-in slide-in-from-bottom-4 duration-1000 font-headline tracking-tight drop-shadow-[0_2px_10px_rgba(0,0,0,0.5)]">
                 NexBot
               </h1>
-              <p className="text-xl md:text-2xl text-white mb-8 animate-in fade-in slide-in-from-bottom-8 duration-1000 max-w-2xl mx-auto font-medium drop-shadow-[0_2px_4px_rgba(0,0,0,0.6)]">
+              <p className="text-lg md:text-xl text-white mb-8 animate-in fade-in slide-in-from-bottom-8 duration-1000 max-w-2xl mx-auto font-medium drop-shadow-[0_2px_4px_rgba(0,0,0,0.6)]">
                 Your personal AI assistant for instant answers, creative ideas, and seamless conversation.
               </p>
               <div className="animate-in fade-in slide-in-from-bottom-12 duration-1000">
