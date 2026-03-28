@@ -407,7 +407,6 @@ const ChatSidebar = () => {
 
 const MainContentHeader = () => {
     const { user, firestore } = useFirebase();
-    const { state } = useSidebar();
     const { toast } = useToast();
     const { setSelectedChatId, selectedChatId, guestSessions } = useChatState();
 
