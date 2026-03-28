@@ -5,7 +5,7 @@ export const ai = genkit({
   plugins: [
     googleAI({
       // Using the specific API key provided by the user
-      apiKey: 'AIzaSyDGXhdPeQzQqEhKnw7gu_jO1UGhEIdpvVY',
+      apiKey: 'AIzaSyD5EjFMiX5UktV8u-R4_C7rx1H4R4BK1eE',
     }),
   ],
   // Standardized model identifier for Gemini 1.5 Flash
