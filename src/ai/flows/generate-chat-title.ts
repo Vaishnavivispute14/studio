@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview A Genkit flow for generating a chat session title.
@@ -41,6 +40,7 @@ const generateChatTitleFlow = ai.defineFlow(
     outputSchema: GenerateChatTitleOutputSchema,
   },
   async input => {
+    // The flow uses the default model defined in src/ai/genkit.ts
     const {output} = await prompt(input);
     return output!;
   }

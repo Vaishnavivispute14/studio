@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview A Genkit flow for a conversational AI chatbot.
@@ -70,6 +69,7 @@ const chatWithAiFlow = ai.defineFlow(
   },
   async input => {
     // Pre-process the input to set flags for the prompt
+    // The flow uses the default model defined in src/ai/genkit.ts
     const {output} = await prompt({
       message: input.message,
       isReasoning: input.mode === 'reasoning',
