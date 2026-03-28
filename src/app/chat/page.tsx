@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useContext, createContext, type FormEvent, useEffect, useMemo } from 'react';
+import { useState, useContext, createContext, type FormEvent, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { collection, serverTimestamp, addDoc, query, orderBy, doc } from 'firebase/firestore';
-import { useFirebase, useUser, useCollection, useDoc, useMemoFirebase, updateDocumentNonBlocking, deleteDocumentNonBlocking, useSidebar } from '@/firebase';
+import { useFirebase, useUser, useCollection, useDoc, useMemoFirebase, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
 import {
   SidebarProvider,
   Sidebar,
@@ -18,6 +18,7 @@ import {
   SidebarGroupLabel,
   SidebarSeparator,
   SidebarTrigger,
+  useSidebar,
 } from '@/components/ui/sidebar';
 import { Bot, MessageSquare, Plus, Search, Home, LogOut, ChevronDown, User, Sparkles, MoreHorizontal, Pin, Archive, Trash2, Edit2, Check, X, Upload, Image as ImageIcon } from 'lucide-react';
 import useAuthRedirect from '@/hooks/use-auth-redirect';
