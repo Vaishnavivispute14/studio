@@ -288,9 +288,12 @@ const ChatSidebar = () => {
   return (
     <>
       <SidebarHeader className="pt-4">
-        <div className="flex h-10 items-center px-2 mb-4">
-            <Bot className="h-8 w-8 text-primary" />
-            <h1 className="text-2xl font-bold text-foreground font-headline ml-2">NexBot</h1>
+        <div className="flex h-10 items-center justify-between px-2 mb-4">
+            <div className="flex items-center">
+                <Bot className="h-8 w-8 text-primary" />
+                <h1 className="text-2xl font-bold text-foreground font-headline ml-2">NexBot</h1>
+            </div>
+            <SidebarTrigger className="h-8 w-8" />
         </div>
         <Button 
           onClick={handleNewChat} 
@@ -429,7 +432,6 @@ const MainContentHeader = () => {
     return (
         <header className="sticky top-0 z-10 flex items-center justify-between p-4 border-b bg-background/50 backdrop-blur-sm h-[64px]">
             <div className="flex items-center gap-4">
-                <SidebarTrigger />
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                         <Button variant="ghost" className="font-semibold text-lg gap-2">
@@ -571,7 +573,12 @@ const MainContentBody = () => {
 
                 generateChatTitle({ message: tempUserInput }).then(({ title }) => {
                     if (title) {
-                        setGuestSessions(prev => prev.map(s => s.id === newGuestChatId ? { ...s, title } : s));
+                        setGuestSessions(prev => prev.map(s => {
+                            if (s.id === newGuestChatId) {
+                                return { ...s, title };
+                            }
+                            return s;
+                        }));
                     }
                 });
             } catch (err) {
