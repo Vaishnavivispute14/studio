@@ -11,7 +11,7 @@ import { Bot, User, SendHorizonal, Wand2, SearchCode, Copy, Check } from "lucide
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useFirebase, useCollection, useDoc, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase';
-import { collection, query, orderBy, serverTimestamp, doc } from 'firebase/firestore';
+import { collection, query, orderBy, serverTimestamp, doc, addDoc } from 'firebase/firestore';
 
 type Message = {
   id?: string;
@@ -55,7 +55,7 @@ export function ChatInterface({
   const { firestore, user } = useFirebase();
   const [copiedId, setCopiedId] = useState<string | number | null>(null);
 
-  const isGuestSession = chatSessionId === 'guest';
+  const isGuestSession = chatSessionId?.startsWith('guest-');
 
   // Sync loading state from props for guests
   useEffect(() => {
@@ -156,7 +156,7 @@ export function ChatInterface({
       timestamp: serverTimestamp(),
       chatSessionId: chatSessionId,
     };
-    addDocumentNonBlocking(messagesCollection, userMessage);
+    await addDoc(messagesCollection, userMessage);
     
     if (chatSession?.title === 'New Chat' && (!firestoreMessages || firestoreMessages.length === 0)) {
         generateChatTitle({ message: tempUserInput })
@@ -176,7 +176,7 @@ export function ChatInterface({
         timestamp: serverTimestamp(),
         chatSessionId: chatSessionId,
       };
-      addDocumentNonBlocking(messagesCollection, assistantMessage);
+      await addDoc(messagesCollection, assistantMessage);
     } catch (error) {
       console.error("AI chat failed:", error);
       toast({

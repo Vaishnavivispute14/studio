@@ -3,7 +3,7 @@
 import { useState, useContext, createContext, type FormEvent, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { collection, serverTimestamp, addDoc, query, orderBy, doc } from 'firebase/firestore';
-import { useFirebase, useUser, useCollection, useDoc, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
+import { useFirebase, useUser, useCollection, useDoc, useMemoFirebase, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
 import {
   SidebarProvider,
   Sidebar,
@@ -14,13 +14,12 @@ import {
   SidebarInset,
   SidebarHeader,
   SidebarFooter,
-  useSidebar,
   SidebarGroup,
   SidebarGroupLabel,
   SidebarSeparator,
   SidebarTrigger,
 } from '@/components/ui/sidebar';
-import { Bot, MessageSquare, Plus, Search, Home, LogOut, ChevronDown, User, SearchCode, Sparkles, MoreHorizontal, Pin, Archive, Trash2, Edit2, Check, X, Upload, Image as ImageIcon, FileText } from 'lucide-react';
+import { Bot, MessageSquare, Plus, Search, Home, LogOut, ChevronDown, User, Sparkles, MoreHorizontal, Pin, Archive, Trash2, Edit2, Check, X, Upload, Image as ImageIcon } from 'lucide-react';
 import useAuthRedirect from '@/hooks/use-auth-redirect';
 import { ChatInterface } from '@/components/chat-interface';
 import { Input } from '@/components/ui/input';
@@ -204,7 +203,6 @@ const ChatHistoryItem = ({ session, isSelected, onSelect, isGuest }: { session: 
 
 const ChatSidebar = () => {
   const { user, auth, firestore } = useFirebase();
-  const { toast } = useToast();
   const router = useRouter();
   const { setSelectedChatId, selectedChatId, guestSessions, setGuestSessions } = useChatState();
   
@@ -503,7 +501,7 @@ export default function ChatPage() {
   return (
     <ChatStateProvider>
         <SidebarProvider>
-            <Sidebar collapsible="icon" variant="sidebar" side="left" className="border-r bg-muted/40">
+            <Sidebar collapsible="icon" variant="sidebar" side="left" className="border-r bg-sidebar">
                 <ChatSidebar />
             </Sidebar>
             <SidebarInset>
@@ -606,7 +604,7 @@ const MainContentBody = () => {
               timestamp: serverTimestamp(),
               chatSessionId: newChatId,
             };
-            addDocumentNonBlocking(messagesCollection, userMessage);
+            await addDoc(messagesCollection, userMessage);
             
             setSelectedChatId(newChatId);
 
@@ -625,7 +623,7 @@ const MainContentBody = () => {
               timestamp: serverTimestamp(),
               chatSessionId: newChatId,
             };
-            addDocumentNonBlocking(messagesCollection, assistantMessage);
+            await addDoc(messagesCollection, assistantMessage);
 
         } catch (error) {
            console.error("Failed to create new chat:", error);
@@ -694,7 +692,7 @@ const MainContentBody = () => {
                                 value={input}
                                 onChange={(e) => setInput(e.target.value)}
                                 placeholder="Ask anything"
-                                className="block w-full border-0 bg-transparent py-2 pl-10 pr-4 text-sm ring-offset-background placeholder:text-muted-foreground/50 focus:outline-none focus:ring-0 transition-all resize-none overflow-hidden min-h-[40px]"
+                                className="block w-full border-0 bg-transparent py-2.5 pl-10 pr-4 text-sm ring-offset-background placeholder:text-muted-foreground/50 focus:outline-none focus:ring-0 transition-all resize-none overflow-hidden min-h-[40px]"
                                 rows={1}
                                 onKeyDown={(e) => {
                                     if (e.key === "Enter" && !e.shiftKey) {
