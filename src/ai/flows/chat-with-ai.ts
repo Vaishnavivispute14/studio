@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview A Genkit flow for a conversational AI chatbot.
@@ -38,7 +39,6 @@ const ChatPromptInputSchema = z.object({
 
 const prompt = ai.definePrompt({
   name: 'chatWithAiPrompt',
-  model: 'googleai/gemini-1.5-flash',
   input: {schema: ChatPromptInputSchema},
   output: {schema: ChatWithAiOutputSchema},
   prompt: `You are NexBot, a highly intelligent and friendly AI assistant. 
