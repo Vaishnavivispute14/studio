@@ -3,7 +3,7 @@
 import { useState, useContext, createContext, type FormEvent, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { collection, serverTimestamp, addDoc, query, orderBy, doc } from 'firebase/firestore';
-import { useFirebase, useUser, useCollection, useDoc, useMemoFirebase, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
+import { useFirebase, useUser, useCollection, useDoc, useMemoFirebase, updateDocumentNonBlocking, deleteDocumentNonBlocking, useSidebar } from '@/firebase';
 import {
   SidebarProvider,
   Sidebar,
@@ -203,6 +203,7 @@ const ChatHistoryItem = ({ session, isSelected, onSelect, isGuest }: { session: 
 
 const ChatSidebar = () => {
   const { user, auth, firestore } = useFirebase();
+  const { state } = useSidebar();
   const router = useRouter();
   const { setSelectedChatId, selectedChatId, guestSessions, setGuestSessions } = useChatState();
   
@@ -287,21 +288,28 @@ const ChatSidebar = () => {
 
   return (
     <>
-      <SidebarHeader className="pt-4">
-        <div className="flex h-10 items-center justify-between px-2 mb-4">
-            <div className="flex items-center">
-                <Bot className="h-8 w-8 text-primary" />
-                <h1 className="text-2xl font-bold text-foreground font-headline ml-2">NexBot</h1>
-            </div>
+      <SidebarHeader className="pt-4 px-2">
+        <div className={cn(
+            "flex h-10 items-center mb-4",
+            state === "expanded" ? "justify-between" : "justify-center"
+        )}>
+            {state === "expanded" && (
+                <div className="flex items-center overflow-hidden">
+                    <Bot className="h-8 w-8 text-primary shrink-0" />
+                    <h1 className="text-2xl font-bold text-foreground font-headline ml-2 truncate">NexBot</h1>
+                </div>
+            )}
             <SidebarTrigger className="h-8 w-8" />
         </div>
-        <Button 
-          onClick={handleNewChat} 
-          className="mx-2 bg-primary hover:bg-primary/90 text-white shadow-md font-semibold"
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          New Chat
-        </Button>
+        {state === "expanded" && (
+            <Button 
+                onClick={handleNewChat} 
+                className="w-full bg-primary hover:bg-primary/90 text-white shadow-md font-semibold"
+            >
+                <Plus className="mr-2 h-4 w-4" />
+                New Chat
+            </Button>
+        )}
       </SidebarHeader>
       <SidebarContent className="scrollbar-thin scrollbar-visible">
         <SidebarGroup>
@@ -375,10 +383,12 @@ const ChatSidebar = () => {
                               {user?.displayName ? user.displayName[0] : <User />}
                           </AvatarFallback>
                       </Avatar>
-                      <div className="flex flex-col items-start text-sm overflow-hidden text-left">
-                          <span className="font-semibold truncate w-full">{user?.displayName || (user?.isAnonymous ? 'Guest' : 'User')}</span>
-                          <span className="text-muted-foreground truncate w-full">{user?.email || (user?.isAnonymous ? 'Temporary session' : '')}</span>
-                      </div>
+                      {state === "expanded" && (
+                          <div className="flex flex-col items-start text-sm overflow-hidden text-left">
+                              <span className="font-semibold truncate w-full">{user?.displayName || (user?.isAnonymous ? 'Guest' : 'User')}</span>
+                              <span className="text-muted-foreground truncate w-full">{user?.email || (user?.isAnonymous ? 'Temporary session' : '')}</span>
+                          </div>
+                      )}
                   </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-56 mb-2" align="start" side="top">
@@ -396,6 +406,7 @@ const ChatSidebar = () => {
 
 const MainContentHeader = () => {
     const { user, firestore } = useFirebase();
+    const { state } = useSidebar();
     const { toast } = useToast();
     const { setSelectedChatId, selectedChatId, guestSessions } = useChatState();
 
@@ -432,7 +443,7 @@ const MainContentHeader = () => {
     return (
         <header className="sticky top-0 z-10 flex items-center justify-between p-4 border-b bg-background/50 backdrop-blur-sm h-[64px]">
             <div className="flex items-center gap-2">
-                <SidebarTrigger className="h-9 w-9" />
+                {state === "collapsed" && <SidebarTrigger className="h-9 w-9" />}
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                         <Button variant="ghost" className="font-semibold text-lg gap-2">
@@ -673,7 +684,7 @@ const MainContentBody = () => {
     return (
         <main className="h-full flex flex-col justify-center items-center p-4 md:p-6 relative">
             <div className="w-full max-w-xl animate-in fade-in slide-in-from-bottom-8 duration-700">
-                <h1 className="text-xl md:text-2xl font-bold text-center mb-10 text-foreground font-poppins">
+                <h1 className="text-xl md:text-2xl font-bold text-center mb-10 text-foreground font-poppins text-[1.1rem]">
                     Hello, how can I assist you today?
                 </h1>
                 <div className="relative group p-[1px] rounded-2xl bg-gradient-to-r from-primary/50 via-accent/30 to-primary/50 shadow-sm max-w-lg mx-auto">
