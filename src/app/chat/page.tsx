@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useContext, createContext, type FormEvent, useEffect } from 'react';
+import { useState, useContext, createContext, type FormEvent, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { collection, serverTimestamp, addDoc, query, orderBy, doc } from 'firebase/firestore';
 import { useFirebase, useUser, useCollection, useDoc, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
@@ -20,7 +20,7 @@ import {
   SidebarSeparator,
   SidebarTrigger,
 } from '@/components/ui/sidebar';
-import { Bot, MessageSquare, Plus, Search, Home, Compass, History, LogOut, ChevronDown, User, SearchCode, Sparkles, MoreHorizontal, Pin, Archive, Trash2, Edit2, Check, X, Upload, Image as ImageIcon, FileText } from 'lucide-react';
+import { Bot, MessageSquare, Plus, Search, Home, LogOut, ChevronDown, User, SearchCode, Sparkles, MoreHorizontal, Pin, Archive, Trash2, Edit2, Check, X, Upload, Image as ImageIcon, FileText } from 'lucide-react';
 import useAuthRedirect from '@/hooks/use-auth-redirect';
 import { ChatInterface } from '@/components/chat-interface';
 import { Input } from '@/components/ui/input';
@@ -48,13 +48,14 @@ type ChatSession = {
   isArchived?: boolean;
   createdAt: any;
   updatedAt: any;
+  messages?: Message[]; // Used for guest sessions
 };
 
 type ChatState = {
   selectedChatId: string | null;
   setSelectedChatId: (id: string | null) => void;
-  guestMessages: Message[];
-  setGuestMessages: React.Dispatch<React.SetStateAction<Message[]>>;
+  guestSessions: ChatSession[];
+  setGuestSessions: React.Dispatch<React.SetStateAction<ChatSession[]>>;
   isGuestLoading: boolean;
   setIsGuestLoading: React.Dispatch<React.SetStateAction<boolean>>;
 }
@@ -62,13 +63,13 @@ const ChatStateContext = createContext<ChatState | null>(null);
 
 const ChatStateProvider = ({ children }: { children: React.ReactNode }) => {
     const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
-    const [guestMessages, setGuestMessages] = useState<Message[]>([]);
+    const [guestSessions, setGuestSessions] = useState<ChatSession[]>([]);
     const [isGuestLoading, setIsGuestLoading] = useState(false);
 
     return (
         <ChatStateContext.Provider value={{ 
             selectedChatId, setSelectedChatId, 
-            guestMessages, setGuestMessages,
+            guestSessions, setGuestSessions,
             isGuestLoading, setIsGuestLoading
         }}>
             {children}
@@ -83,24 +84,38 @@ const useChatState = () => {
     return context;
 }
 
-const ChatHistoryItem = ({ session, isSelected, onSelect }: { session: ChatSession; isSelected: boolean; onSelect: (id: string) => void }) => {
+const ChatHistoryItem = ({ session, isSelected, onSelect, isGuest }: { session: ChatSession; isSelected: boolean; onSelect: (id: string) => void; isGuest: boolean }) => {
   const { user, firestore } = useFirebase();
   const { toast } = useToast();
+  const { setGuestSessions } = useChatState();
   const [isRenaming, setIsRenaming] = useState(false);
   const [newTitle, setNewTitle] = useState(session.title);
 
   const handleAction = (action: 'pin' | 'archive' | 'delete' | 'rename') => {
+    if (isGuest) {
+        switch (action) {
+            case 'rename':
+                setIsRenaming(true);
+                break;
+            case 'delete':
+                setGuestSessions(prev => prev.filter(s => s.id !== session.id));
+                toast({ variant: "destructive", title: "Deleted", description: "Guest chat session removed." });
+                break;
+            default:
+                toast({ title: "Feature unavailable", description: "Login to pin or archive chats." });
+        }
+        return;
+    }
+
     if (!user) return;
     const sessionRef = doc(firestore, 'users', user.uid, 'chatSessions', session.id);
 
     switch (action) {
       case 'pin':
         updateDocumentNonBlocking(sessionRef, { isPinned: !session.isPinned });
-        toast({ title: session.isPinned ? "Unpinned" : "Pinned", description: `Chat session ${session.isPinned ? 'unpinned' : 'pinned'}.` });
         break;
       case 'archive':
         updateDocumentNonBlocking(sessionRef, { isArchived: !session.isArchived });
-        toast({ title: session.isArchived ? "Unarchived" : "Archived", description: `Chat session ${session.isArchived ? 'unarchived' : 'archived'}.` });
         break;
       case 'delete':
         deleteDocumentNonBlocking(sessionRef);
@@ -113,6 +128,11 @@ const ChatHistoryItem = ({ session, isSelected, onSelect }: { session: ChatSessi
   };
 
   const submitRename = () => {
+    if (isGuest) {
+        setGuestSessions(prev => prev.map(s => s.id === session.id ? { ...s, title: newTitle.trim() } : s));
+        setIsRenaming(false);
+        return;
+    }
     if (!user || !newTitle.trim()) return;
     const sessionRef = doc(firestore, 'users', user.uid, 'chatSessions', session.id);
     updateDocumentNonBlocking(sessionRef, { title: newTitle.trim() });
@@ -159,12 +179,16 @@ const ChatHistoryItem = ({ session, isSelected, onSelect }: { session: ChatSessi
                 <DropdownMenuItem onClick={() => handleAction('rename')}>
                   <Edit2 className="mr-2 h-4 w-4" /> Rename
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleAction('pin')}>
-                  <Pin className="mr-2 h-4 w-4" /> {session.isPinned ? 'Unpin' : 'Pin'}
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleAction('archive')}>
-                  <Archive className="mr-2 h-4 w-4" /> Archive
-                </DropdownMenuItem>
+                {!isGuest && (
+                    <>
+                        <DropdownMenuItem onClick={() => handleAction('pin')}>
+                            <Pin className="mr-2 h-4 w-4" /> {session.isPinned ? 'Unpin' : 'Pin'}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleAction('archive')}>
+                            <Archive className="mr-2 h-4 w-4" /> Archive
+                        </DropdownMenuItem>
+                    </>
+                )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => handleAction('delete')} className="text-destructive">
                   <Trash2 className="mr-2 h-4 w-4" /> Delete
@@ -182,11 +206,44 @@ const ChatSidebar = () => {
   const { user, auth, firestore } = useFirebase();
   const { toast } = useToast();
   const router = useRouter();
+  const { setSelectedChatId, selectedChatId, guestSessions, setGuestSessions } = useChatState();
   
   const handleLogout = () => {
     if (auth) {
       auth.signOut();
       router.push('/login');
+    }
+  };
+
+  const handleNewChat = async () => {
+    if (!user) return;
+    if (user.isAnonymous) {
+        const newGuestSession: ChatSession = {
+            id: `guest-${Date.now()}`,
+            title: 'New Guest Chat',
+            userId: 'guest',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            messages: []
+        };
+        setGuestSessions(prev => [newGuestSession, ...prev]);
+        setSelectedChatId(newGuestSession.id);
+        return;
+    }
+    const newChatSession = {
+        title: 'New Chat',
+        userId: user.uid,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+    };
+    try {
+        const docRef = await addDoc(
+            collection(firestore, 'users', user.uid, 'chatSessions'),
+            newChatSession
+        );
+        setSelectedChatId(docRef.id);
+    } catch (error) {
+        console.error('Error creating new chat session:', error);
     }
   };
 
@@ -198,19 +255,21 @@ const ChatSidebar = () => {
     );
   }, [firestore, user]);
 
-  const { data: chatSessions, isLoading: sessionsLoading } = useCollection<ChatSession>(chatSessionsQuery);
+  const { data: cloudSessions, isLoading: sessionsLoading } = useCollection<ChatSession>(chatSessionsQuery);
 
-  const activeSessions = chatSessions?.filter(s => !s.isArchived) || [];
+  const displaySessions = user?.isAnonymous ? guestSessions : cloudSessions || [];
+  const activeSessions = displaySessions?.filter(s => !s.isArchived) || [];
   const pinnedSessions = activeSessions.filter(s => s.isPinned) || [];
   const regularSessions = activeSessions.filter(s => !s.isPinned) || [];
 
-  const { setSelectedChatId, selectedChatId } = useChatState();
   const [searchQuery, setSearchQuery] = useState("");
 
   const filteredPinned = pinnedSessions.filter(s => s.title?.toLowerCase().includes(searchQuery.toLowerCase()));
+  
   const filteredGroups = Object.entries(regularSessions.reduce((acc, session) => {
-    if (!session.createdAt) return acc;
-    const date = new Date(session.createdAt.seconds * 1000);
+    const date = session.createdAt?.seconds ? new Date(session.createdAt.seconds * 1000) : new Date(session.createdAt);
+    if (!date || isNaN(date.getTime())) return acc;
+    
     const now = new Date();
     const diffTime = Math.abs(now.getTime() - date.getTime());
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -230,11 +289,18 @@ const ChatSidebar = () => {
 
   return (
     <>
-      <SidebarHeader>
-        <div className="flex h-10 items-center px-2">
+      <SidebarHeader className="pt-4">
+        <div className="flex h-10 items-center px-2 mb-4">
             <Bot className="h-8 w-8 text-primary" />
             <h1 className="text-2xl font-bold text-foreground font-headline ml-2">NexBot</h1>
         </div>
+        <Button 
+          onClick={handleNewChat} 
+          className="mx-2 bg-primary hover:bg-primary/90 text-white shadow-md font-semibold"
+        >
+          <Plus className="mr-2 h-4 w-4" />
+          New Chat
+        </Button>
       </SidebarHeader>
       <SidebarContent className="scrollbar-thin scrollbar-visible">
         <SidebarGroup>
@@ -261,14 +327,6 @@ const ChatSidebar = () => {
             <SidebarMenuItem>
               <SidebarMenuButton onClick={() => setSelectedChatId(null)} isActive={selectedChatId === null}><Home /> Home</SidebarMenuButton>
             </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton 
-                onClick={() => toast({ title: "Deep Research", description: "Advanced research mode is active for your next query." })}
-              >
-                <SearchCode className="h-4 w-4" />
-                <span>Deep Research</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
           </SidebarMenu>
         </SidebarGroup>
 
@@ -287,7 +345,7 @@ const ChatSidebar = () => {
             <SidebarGroupLabel>Pinned</SidebarGroupLabel>
             <SidebarMenu>
               {filteredPinned.map(session => (
-                <ChatHistoryItem key={session.id} session={session} isSelected={selectedChatId === session.id} onSelect={setSelectedChatId} />
+                <ChatHistoryItem key={session.id} session={session} isSelected={selectedChatId === session.id} onSelect={setSelectedChatId} isGuest={!!user?.isAnonymous} />
               ))}
             </SidebarMenu>
           </SidebarGroup>
@@ -298,7 +356,7 @@ const ChatSidebar = () => {
                 <SidebarGroupLabel>{group}</SidebarGroupLabel>
                 <SidebarMenu>
                     {sessions.map((session) => (
-                      <ChatHistoryItem key={session.id} session={session} isSelected={selectedChatId === session.id} onSelect={setSelectedChatId} />
+                      <ChatHistoryItem key={session.id} session={session} isSelected={selectedChatId === session.id} onSelect={setSelectedChatId} isGuest={!!user?.isAnonymous} />
                     ))}
                 </SidebarMenu>
             </SidebarGroup>
@@ -338,57 +396,35 @@ const ChatSidebar = () => {
 const MainContentHeader = () => {
     const { user, firestore } = useFirebase();
     const { toast } = useToast();
-    const { setSelectedChatId, setGuestMessages, selectedChatId } = useChatState();
+    const { setSelectedChatId, selectedChatId, guestSessions } = useChatState();
 
-    const isGuest = selectedChatId === 'guest';
+    const isGuest = selectedChatId?.startsWith('guest-');
+    
     const chatSessionRef = useMemoFirebase(() => {
         if (!user || !selectedChatId || isGuest) return null;
         return doc(firestore, `users/${user.uid}/chatSessions/${selectedChatId}`);
     }, [firestore, user, selectedChatId, isGuest]);
     
-    const { data: chatSession } = useDoc<ChatSession>(chatSessionRef);
+    const { data: cloudChatSession } = useDoc<ChatSession>(chatSessionRef);
+    const guestChatSession = isGuest ? guestSessions.find(s => s.id === selectedChatId) : null;
+    const chatSession = isGuest ? guestChatSession : cloudChatSession;
 
     const handleAction = (action: 'pin' | 'archive' | 'delete') => {
-        if (!user || !chatSessionRef || !chatSession) return;
+        if (!user || isGuest) return;
+        if (!chatSessionRef || !chatSession) return;
         
         switch (action) {
           case 'pin':
             updateDocumentNonBlocking(chatSessionRef, { isPinned: !chatSession.isPinned });
-            toast({ title: chatSession.isPinned ? "Unpinned" : "Pinned", description: `Chat session ${chatSession.isPinned ? 'unpinned' : 'pinned'}.` });
             break;
           case 'archive':
             updateDocumentNonBlocking(chatSessionRef, { isArchived: !chatSession.isArchived });
-            toast({ title: chatSession.isArchived ? "Unarchived" : "Archived", description: `Chat session ${chatSession.isArchived ? 'unarchived' : 'archived'}.` });
             break;
           case 'delete':
             deleteDocumentNonBlocking(chatSessionRef);
             setSelectedChatId(null);
             toast({ variant: "destructive", title: "Deleted", description: "Chat session removed permanently." });
             break;
-        }
-    };
-
-    const handleNewChat = async () => {
-        if (!user) return;
-        if (user.isAnonymous) {
-            setGuestMessages([]);
-            setSelectedChatId('guest');
-            return;
-        }
-        const newChatSession = {
-            title: 'New Chat',
-            userId: user.uid,
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp(),
-        };
-        try {
-            const docRef = await addDoc(
-                collection(firestore, 'users', user.uid, 'chatSessions'),
-                newChatSession
-            );
-            setSelectedChatId(docRef.id);
-        } catch (error) {
-            console.error('Error creating new chat session:', error);
         }
     };
 
@@ -436,10 +472,6 @@ const MainContentHeader = () => {
                         </DropdownMenuContent>
                     </DropdownMenu>
                 )}
-                <Button variant="default" size="sm" onClick={handleNewChat} className="shadow-sm">
-                    <Plus className="mr-2 h-4 w-4" />
-                    New Chat
-                </Button>
                  <Avatar className="h-8 w-8 ml-2">
                      <AvatarImage src={user?.photoURL || ''} />
                     <AvatarFallback className="bg-primary text-primary-foreground">
@@ -488,7 +520,7 @@ export default function ChatPage() {
 const MainContentBody = () => {
     const { 
         selectedChatId, setSelectedChatId, 
-        guestMessages, setGuestMessages,
+        guestSessions, setGuestSessions,
         isGuestLoading, setIsGuestLoading
     } = useChatState();
     const { user } = useUser();
@@ -511,17 +543,39 @@ const MainContentBody = () => {
         setIsLoading(true);
 
         if (user.isAnonymous) {
+            const newGuestChatId = `guest-${Date.now()}`;
             const initialMessages: Message[] = [
                 { senderType: "user", content: tempUserInput, timestamp: new Date() }
             ];
-            setGuestMessages(initialMessages);
+            
+            const newSession: ChatSession = {
+                id: newGuestChatId,
+                title: 'New Guest Chat',
+                userId: 'guest',
+                createdAt: new Date(),
+                updatedAt: new Date(),
+                messages: initialMessages
+            };
+
+            setGuestSessions(prev => [newSession, ...prev]);
+            setSelectedChatId(newGuestChatId);
             setIsGuestLoading(true);
-            setSelectedChatId('guest');
             setIsLoading(false);
 
             try {
                 const { response } = await chatWithAi({ message: tempUserInput, mode: currentMode });
-                setGuestMessages(prev => [...prev, { senderType: "ai", content: response, timestamp: new Date() }]);
+                const aiMessage: Message = { senderType: "ai", content: response, timestamp: new Date() };
+                
+                setGuestSessions(prev => prev.map(s => s.id === newGuestChatId ? {
+                    ...s,
+                    messages: [...s.messages!, aiMessage]
+                } : s));
+
+                generateChatTitle({ message: tempUserInput }).then(({ title }) => {
+                    if (title) {
+                        setGuestSessions(prev => prev.map(s => s.id === newGuestChatId ? { ...s, title } : s));
+                    }
+                });
             } catch (err) {
                 console.error("Guest AI fail:", err);
                 toast({ variant: "destructive", title: "Error", description: "Something went wrong. Please try again." });
@@ -586,14 +640,23 @@ const MainContentBody = () => {
     };
 
     if (selectedChatId) {
+        const currentGuestSession = guestSessions.find(s => s.id === selectedChatId);
         return (
              <main className="flex-1 flex items-center justify-center p-4 md:p-6">
                 <ChatInterface 
                     key={selectedChatId} 
                     chatSessionId={selectedChatId} 
                     initialInput={input}
-                    initialGuestMessages={guestMessages}
-                    onGuestMessagesChange={setGuestMessages}
+                    initialGuestMessages={currentGuestSession?.messages}
+                    onGuestMessagesChange={(updater) => {
+                        setGuestSessions(prev => prev.map(s => {
+                            if (s.id === selectedChatId) {
+                                const newMessages = typeof updater === 'function' ? updater(s.messages || []) : updater;
+                                return { ...s, messages: newMessages };
+                            }
+                            return s;
+                        }));
+                    }}
                     isGuestLoading={isGuestLoading}
                     onGuestLoadingChange={setIsGuestLoading}
                 />
@@ -604,12 +667,12 @@ const MainContentBody = () => {
     return (
         <main className="h-full flex flex-col justify-center items-center p-4 md:p-6 relative">
             <div className="w-full max-w-xl animate-in fade-in slide-in-from-bottom-8 duration-700">
-                <h1 className="text-2xl md:text-3xl font-bold text-center mb-10 text-foreground font-poppins">
+                <h1 className="text-xl md:text-2xl font-bold text-center mb-10 text-foreground font-poppins">
                     Hello, how can I assist you today?
                 </h1>
-                <div className="relative group p-[1px] rounded-2xl bg-gradient-to-r from-primary/50 via-accent/30 to-primary/50 shadow-sm">
+                <div className="relative group p-[1px] rounded-2xl bg-gradient-to-r from-primary/50 via-accent/30 to-primary/50 shadow-sm max-w-lg mx-auto">
                     <form onSubmit={handleWelcomeSubmit}>
-                        <div className="relative flex items-center bg-background/80 backdrop-blur-md rounded-2xl overflow-hidden">
+                        <div className="relative flex items-center bg-background/80 backdrop-blur-md rounded-2xl overflow-hidden min-h-[40px]">
                             <div className="absolute left-2 z-10">
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
@@ -624,12 +687,6 @@ const MainContentBody = () => {
                                         <DropdownMenuItem onClick={() => toast({ title: "Attach Image", description: "Feature coming soon." })}>
                                             <ImageIcon className="mr-2 h-4 w-4" /> Attach Image
                                         </DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => setSelectedChatId(null)}>
-                                            <Plus className="mr-2 h-4 w-4" /> Start New Chat
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => toast({ title: "Use Template", description: "Feature coming soon." })}>
-                                            <FileText className="mr-2 h-4 w-4" /> Use Template
-                                        </DropdownMenuItem>
                                     </DropdownMenuContent>
                                 </DropdownMenu>
                             </div>
@@ -637,7 +694,7 @@ const MainContentBody = () => {
                                 value={input}
                                 onChange={(e) => setInput(e.target.value)}
                                 placeholder="Ask anything"
-                                className="block w-full border-0 bg-transparent py-3 pl-10 pr-4 text-base ring-offset-background placeholder:text-muted-foreground/50 focus:outline-none focus:ring-0 transition-all resize-none overflow-hidden min-h-[44px]"
+                                className="block w-full border-0 bg-transparent py-2 pl-10 pr-4 text-sm ring-offset-background placeholder:text-muted-foreground/50 focus:outline-none focus:ring-0 transition-all resize-none overflow-hidden min-h-[40px]"
                                 rows={1}
                                 onKeyDown={(e) => {
                                     if (e.key === "Enter" && !e.shiftKey) {
