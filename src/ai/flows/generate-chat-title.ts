@@ -1,6 +1,7 @@
+
 'use server';
 /**
- * @fileOverview A Genkit flow for generating a chat session title.
+ * @fileOverview A flow for generating a chat session title using Hugging Face.
  *
  * - generateChatTitle - A function that creates a concise title from a message.
  * - GenerateChatTitleInput - The input type for the generateChatTitle function.
@@ -9,6 +10,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import axios from 'axios';
 
 const GenerateChatTitleInputSchema = z.object({
   message: z.string().describe("The user's message to summarize."),
@@ -24,15 +26,6 @@ export async function generateChatTitle(input: GenerateChatTitleInput): Promise<
   return generateChatTitleFlow(input);
 }
 
-const prompt = ai.definePrompt({
-  name: 'generateChatTitlePrompt',
-  input: {schema: GenerateChatTitleInputSchema},
-  output: {schema: GenerateChatTitleOutputSchema},
-  prompt: `Generate a concise title (2-4 words) for a chat session based on the following user message. The title should capture the main topic of the message. Do not use quotes in the title.
-
-User message: {{{message}}}`,
-});
-
 const generateChatTitleFlow = ai.defineFlow(
   {
     name: 'generateChatTitleFlow',
@@ -40,8 +33,42 @@ const generateChatTitleFlow = ai.defineFlow(
     outputSchema: GenerateChatTitleOutputSchema,
   },
   async input => {
-    // The flow uses the default model defined in src/ai/genkit.ts
-    const {output} = await prompt(input);
-    return output!;
+    const apiKey = process.env.HUGGINGFACE_API_KEY;
+    const model = process.env.HUGGINGFACE_MODEL || 'meta-llama/Meta-Llama-3-8B-Instruct';
+
+    if (!apiKey) {
+      throw new Error("HUGGINGFACE_API_KEY is not configured.");
+    }
+
+    const prompt = `<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\nGenerate a concise title (2-4 words) for a chat session based on the following user message. The title should capture the main topic. Do not use quotes.<|eot_id|><|start_header_id|>user<|end_header_id|>\n\n${input.message}<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n`;
+
+    try {
+      const response = await axios.post(
+        `https://api-inference.huggingface.co/models/${model}`,
+        {
+          inputs: prompt,
+          parameters: {
+            max_new_tokens: 15,
+            return_full_text: false,
+          },
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      let title = response.data[0]?.generated_text || "New Chat";
+      title = title.replace(/["']/g, "").trim();
+
+      return {
+        title: title || "New Chat",
+      };
+    } catch (error: any) {
+      console.error("Hugging Face Title Error:", error.message);
+      return { title: "New Chat" };
+    }
   }
 );
