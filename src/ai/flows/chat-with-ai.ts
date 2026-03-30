@@ -1,6 +1,7 @@
+
 'use server';
 /**
- * @fileOverview A flow for a conversational AI chatbot using Google Gemini.
+ * @fileOverview A flow for a conversational AI chatbot using Google Gemini 2.5 Flash.
  *
  * - chatWithAi - A function that handles the AI chatbot conversation.
  * - ChatWithAiInput - The input type for the chatWithAi function.
@@ -26,7 +27,7 @@ const ChatWithAiOutputSchema = z.object({
 export type ChatWithAiOutput = z.infer<typeof ChatWithAiOutputSchema>;
 
 /**
- * Main function to chat with AI using Google Gemini.
+ * Main function to chat with AI using Google Gemini 2.5 Flash.
  */
 export async function chatWithAi(input: ChatWithAiInput): Promise<ChatWithAiOutput> {
   return chatWithAiFlow(input);
@@ -36,7 +37,7 @@ const chatWithAiPrompt = ai.definePrompt({
   name: 'chatWithAiPrompt',
   input: { schema: ChatWithAiInputSchema },
   output: { format: 'text' },
-  model: 'googleai/gemini-1.5-flash',
+  model: 'googleai/gemini-2.5-flash',
   system: `You are NexBot, a highly intelligent and friendly AI assistant. 
 Provide responses that are clear, professional, and easy to scan:
 - Use short paragraphs.
@@ -54,9 +55,10 @@ const chatWithAiFlow = ai.defineFlow(
     outputSchema: ChatWithAiOutputSchema,
   },
   async (input) => {
-    const { text } = await chatWithAiPrompt(input);
-    return {
-      response: text || "I'm sorry, I couldn't generate a response.",
-    };
+      const result = await chatWithAiPrompt(input);
+
+      return {
+        response: result?.text ?? "⚠️ AI did not return a response",
+};
   }
 );

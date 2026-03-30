@@ -1,6 +1,7 @@
+
 'use server';
 /**
- * @fileOverview A flow for generating a chat session title using Google Gemini.
+ * @fileOverview A flow for generating a chat session title using Google Gemini 2.5 Flash.
  *
  * - generateChatTitle - A function that creates a concise title from a message.
  * - GenerateChatTitleInput - The input type for the generateChatTitle function.
@@ -28,7 +29,7 @@ const titlePrompt = ai.definePrompt({
   name: 'generateChatTitlePrompt',
   input: { schema: GenerateChatTitleInputSchema },
   output: { format: 'text' },
-  model: 'googleai/gemini-1.5-flash',
+  model: 'googleai/gemini-2.5-flash',
   system: 'Generate a very concise title (2-4 words) for a chat session based on the provided user message. Do not use quotes.',
   prompt: 'Message: {{{message}}}',
 });
