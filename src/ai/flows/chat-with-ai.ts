@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview A flow for a conversational AI chatbot using Google Gemini.
@@ -10,7 +9,6 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
-import { googleAI } from '@genkit-ai/google-genai';
 
 const ChatWithAiInputSchema = z.object({
   message: z.string().describe("The user's message to the AI chatbot."),
@@ -38,7 +36,7 @@ const chatWithAiPrompt = ai.definePrompt({
   name: 'chatWithAiPrompt',
   input: { schema: ChatWithAiInputSchema },
   output: { format: 'text' },
-  model: googleAI('gemini-1.5-flash'),
+  model: 'googleai/gemini-1.5-flash',
   system: `You are NexBot, a highly intelligent and friendly AI assistant. 
 Provide responses that are clear, professional, and easy to scan:
 - Use short paragraphs.

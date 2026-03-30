@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview A flow for generating a chat session title using Google Gemini.
@@ -10,7 +9,6 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
-import { googleAI } from '@genkit-ai/google-genai';
 
 const GenerateChatTitleInputSchema = z.object({
   message: z.string().describe("The user's message to summarize."),
@@ -30,7 +28,7 @@ const titlePrompt = ai.definePrompt({
   name: 'generateChatTitlePrompt',
   input: { schema: GenerateChatTitleInputSchema },
   output: { format: 'text' },
-  model: googleAI('gemini-1.5-flash'),
+  model: 'googleai/gemini-1.5-flash',
   system: 'Generate a very concise title (2-4 words) for a chat session based on the provided user message. Do not use quotes.',
   prompt: 'Message: {{{message}}}',
 });
