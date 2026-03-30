@@ -37,7 +37,7 @@ const generateChatTitleFlow = ai.defineFlow(
     const model = process.env.HUGGINGFACE_MODEL || 'meta-llama/Meta-Llama-3-8B-Instruct';
 
     if (!apiKey) {
-      throw new Error("HUGGINGFACE_API_KEY is not configured.");
+      return { title: "New Chat" };
     }
 
     const prompt = `<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\nGenerate a concise title (2-4 words) for a chat session based on the following user message. The title should capture the main topic. Do not use quotes.<|eot_id|><|start_header_id|>user<|end_header_id|>\n\n${input.message}<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n`;
@@ -51,6 +51,9 @@ const generateChatTitleFlow = ai.defineFlow(
             max_new_tokens: 15,
             return_full_text: false,
           },
+          options: {
+            wait_for_model: true,
+          }
         },
         {
           headers: {

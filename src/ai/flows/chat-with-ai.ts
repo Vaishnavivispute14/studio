@@ -45,7 +45,9 @@ const chatWithAiFlow = ai.defineFlow(
     const model = process.env.HUGGINGFACE_MODEL || 'meta-llama/Meta-Llama-3-8B-Instruct';
 
     if (!apiKey) {
-      throw new Error("HUGGINGFACE_API_KEY is not configured.");
+      return {
+        response: "HUGGINGFACE_API_KEY is not configured in the environment variables.",
+      };
     }
 
     // Build the system prompt
@@ -76,6 +78,9 @@ Your goal is to provide responses that have a ChatGPT-like structure:
             temperature: 0.7,
             top_p: 0.9,
           },
+          options: {
+            wait_for_model: true,
+          }
         },
         {
           headers: {
@@ -85,23 +90,20 @@ Your goal is to provide responses that have a ChatGPT-like structure:
         }
       );
 
-      // Hugging Face returns an array of objects
+      // Hugging Face returns an array of objects for text generation
       const generatedText = response.data[0]?.generated_text || "I'm sorry, I couldn't generate a response.";
 
       return {
         response: generatedText.trim(),
       };
     } catch (error: any) {
-      console.error("Hugging Face API Error:", error.response?.data || error.message);
+      const errorDetail = error.response?.data?.error || error.message;
+      console.error("Hugging Face API Error:", errorDetail);
       
-      // Handle loading state (503) which is common for Inference API
-      if (error.response?.status === 503) {
-        return {
-          response: "The AI model is currently loading on Hugging Face. Please try again in a few seconds.",
-        };
-      }
-
-      throw new Error("Failed to get response from AI provider.");
+      // Return the error gracefully to the UI instead of throwing and crashing
+      return {
+        response: `Sorry, I encountered an error: ${errorDetail}. This might be due to API rate limits or model availability. Please try again in a moment.`,
+      };
     }
   }
 );
