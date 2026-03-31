@@ -1,8 +1,9 @@
+
 "use client";
 
 import { useState, useContext, createContext, type FormEvent, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { collection, serverTimestamp, addDoc, query, orderBy, doc } from 'firebase/firestore';
+import { collection, serverTimestamp, addDoc, query, orderBy, doc, getDocs } from 'firebase/firestore';
 import { useFirebase, useUser, useCollection, useDoc, useMemoFirebase, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
 import {
   SidebarProvider,
@@ -20,7 +21,7 @@ import {
   SidebarTrigger,
   useSidebar,
 } from '@/components/ui/sidebar';
-import { Bot, MessageSquare, Plus, Search, Home, LogOut, ChevronDown, User, Sparkles, MoreHorizontal, Pin, Archive, Trash2, Edit2, Check, X, Upload, Image as ImageIcon } from 'lucide-react';
+import { Bot, MessageSquare, Plus, Search, Home, LogOut, ChevronDown, User, Sparkles, MoreHorizontal, Pin, Archive, Trash2, Edit2, Check, X, Upload, Image as ImageIcon, RotateCcw } from 'lucide-react';
 import useAuthRedirect from '@/hooks/use-auth-redirect';
 import { ChatInterface } from '@/components/chat-interface';
 import { Input } from '@/components/ui/input';
@@ -91,18 +92,26 @@ const ChatHistoryItem = ({ session, isSelected, onSelect, isGuest }: { session: 
   const [isRenaming, setIsRenaming] = useState(false);
   const [newTitle, setNewTitle] = useState(session.title);
 
-  const handleAction = (action: 'pin' | 'archive' | 'delete' | 'rename') => {
+  const handleAction = (action: 'pin' | 'archive' | 'delete' | 'rename' | 'unarchive') => {
     if (isGuest) {
         switch (action) {
             case 'rename':
                 setIsRenaming(true);
+                break;
+            case 'archive':
+                setGuestSessions(prev => prev.map(s => s.id === session.id ? { ...s, isArchived: true } : s));
+                toast({ title: "Archived", description: "Guest chat session archived." });
+                break;
+            case 'unarchive':
+                setGuestSessions(prev => prev.map(s => s.id === session.id ? { ...s, isArchived: false } : s));
+                toast({ title: "Restored", description: "Guest chat session restored." });
                 break;
             case 'delete':
                 setGuestSessions(prev => prev.filter(s => s.id !== session.id));
                 toast({ variant: "destructive", title: "Deleted", description: "Guest chat session removed." });
                 break;
             default:
-                toast({ title: "Feature unavailable", description: "Login to pin or archive chats." });
+                toast({ title: "Feature unavailable", description: "Login to pin chats." });
         }
         return;
     }
@@ -115,7 +124,12 @@ const ChatHistoryItem = ({ session, isSelected, onSelect, isGuest }: { session: 
         updateDocumentNonBlocking(sessionRef, { isPinned: !session.isPinned });
         break;
       case 'archive':
-        updateDocumentNonBlocking(sessionRef, { isArchived: !session.isArchived });
+        updateDocumentNonBlocking(sessionRef, { isArchived: true });
+        toast({ title: "Archived", description: "Chat session moved to archives." });
+        break;
+      case 'unarchive':
+        updateDocumentNonBlocking(sessionRef, { isArchived: false });
+        toast({ title: "Restored", description: "Chat session restored to main list." });
         break;
       case 'delete':
         deleteDocumentNonBlocking(sessionRef);
@@ -179,15 +193,21 @@ const ChatHistoryItem = ({ session, isSelected, onSelect, isGuest }: { session: 
                 <DropdownMenuItem onClick={() => handleAction('rename')}>
                   <Edit2 className="mr-2 h-4 w-4" /> Rename
                 </DropdownMenuItem>
-                {!isGuest && (
-                    <>
-                        <DropdownMenuItem onClick={() => handleAction('pin')}>
-                            <Pin className="mr-2 h-4 w-4" /> {session.isPinned ? 'Unpin' : 'Pin'}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleAction('archive')}>
-                            <Archive className="mr-2 h-4 w-4" /> Archive
-                        </DropdownMenuItem>
-                    </>
+                {session.isArchived ? (
+                  <DropdownMenuItem onClick={() => handleAction('unarchive')}>
+                    <RotateCcw className="mr-2 h-4 w-4" /> Restore
+                  </DropdownMenuItem>
+                ) : (
+                  <>
+                    {!isGuest && (
+                      <DropdownMenuItem onClick={() => handleAction('pin')}>
+                        <Pin className="mr-2 h-4 w-4" /> {session.isPinned ? 'Unpin' : 'Pin'}
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuItem onClick={() => handleAction('archive')}>
+                      <Archive className="mr-2 h-4 w-4" /> Archive
+                    </DropdownMenuItem>
+                  </>
                 )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => handleAction('delete')} className="text-destructive">
@@ -207,6 +227,7 @@ const ChatSidebar = () => {
   const { state } = useSidebar();
   const router = useRouter();
   const { setSelectedChatId, selectedChatId, guestSessions, setGuestSessions } = useChatState();
+  const [searchQuery, setSearchQuery] = useState("");
   
   const handleLogout = () => {
     if (auth) {
@@ -257,15 +278,23 @@ const ChatSidebar = () => {
 
   const { data: cloudSessions, isLoading: sessionsLoading } = useCollection<ChatSession>(chatSessionsQuery);
 
-  const displaySessions = user?.isAnonymous ? guestSessions : cloudSessions || [];
-  const activeSessions = displaySessions?.filter(s => !s.isArchived) || [];
+  const rawSessions = user?.isAnonymous ? guestSessions : cloudSessions || [];
+  
+  // Filtering logic including content for guest sessions
+  const filteredSessions = rawSessions.filter(s => {
+    const q = searchQuery.toLowerCase();
+    const titleMatch = s.title?.toLowerCase().includes(q);
+    // Content search for guests (as they are fully in memory)
+    const contentMatch = user?.isAnonymous ? s.messages?.some(m => m.content.toLowerCase().includes(q)) : false;
+    return titleMatch || contentMatch;
+  });
+
+  const activeSessions = filteredSessions.filter(s => !s.isArchived) || [];
+  const archivedSessions = filteredSessions.filter(s => s.isArchived) || [];
+
   const pinnedSessions = activeSessions.filter(s => s.isPinned) || [];
   const regularSessions = activeSessions.filter(s => !s.isPinned) || [];
 
-  const [searchQuery, setSearchQuery] = useState("");
-
-  const filteredPinned = pinnedSessions.filter(s => s.title?.toLowerCase().includes(searchQuery.toLowerCase()));
-  
   const filteredGroups = Object.entries(regularSessions.reduce((acc, session) => {
     const date = session.createdAt?.seconds ? new Date(session.createdAt.seconds * 1000) : new Date(session.createdAt);
     if (!date || isNaN(date.getTime())) return acc;
@@ -281,11 +310,7 @@ const ChatSidebar = () => {
     if(!acc[group]) acc[group] = [];
     acc[group].push(session);
     return acc;
-  }, {} as Record<string, ChatSession[]>)).reduce((acc, [group, sessions]) => {
-      const filtered = sessions.filter(s => s.title?.toLowerCase().includes(searchQuery.toLowerCase()));
-      if (filtered.length > 0) acc[group] = filtered;
-      return acc;
-  }, {} as Record<string, ChatSession[]>);
+  }, {} as Record<string, ChatSession[]>));
 
   return (
     <>
@@ -340,6 +365,17 @@ const ChatSidebar = () => {
           </SidebarMenu>
         </SidebarGroup>
 
+        {archivedSessions.length > 0 && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Archived</SidebarGroupLabel>
+            <SidebarMenu>
+              {archivedSessions.map(session => (
+                <ChatHistoryItem key={session.id} session={session} isSelected={selectedChatId === session.id} onSelect={setSelectedChatId} isGuest={!!user?.isAnonymous} />
+              ))}
+            </SidebarMenu>
+          </SidebarGroup>
+        )}
+
         <SidebarSeparator />
         
         {sessionsLoading && (
@@ -350,18 +386,18 @@ const ChatSidebar = () => {
             </SidebarGroup>
         )}
 
-        {!sessionsLoading && filteredPinned.length > 0 && (
+        {!sessionsLoading && pinnedSessions.length > 0 && (
           <SidebarGroup>
             <SidebarGroupLabel>Pinned</SidebarGroupLabel>
             <SidebarMenu>
-              {filteredPinned.map(session => (
+              {pinnedSessions.map(session => (
                 <ChatHistoryItem key={session.id} session={session} isSelected={selectedChatId === session.id} onSelect={setSelectedChatId} isGuest={!!user?.isAnonymous} />
               ))}
             </SidebarMenu>
           </SidebarGroup>
         )}
 
-        {!sessionsLoading && filteredGroups && Object.entries(filteredGroups).map(([group, sessions]) => (
+        {!sessionsLoading && filteredGroups.map(([group, sessions]) => (
             <SidebarGroup key={group}>
                 <SidebarGroupLabel>{group}</SidebarGroupLabel>
                 <SidebarMenu>
@@ -430,7 +466,8 @@ const MainContentHeader = () => {
             updateDocumentNonBlocking(chatSessionRef, { isPinned: !chatSession.isPinned });
             break;
           case 'archive':
-            updateDocumentNonBlocking(chatSessionRef, { isArchived: !chatSession.isArchived });
+            updateDocumentNonBlocking(chatSessionRef, { isArchived: true });
+            toast({ title: "Archived", description: "Chat session moved to archives." });
             break;
           case 'delete':
             deleteDocumentNonBlocking(chatSessionRef);
@@ -542,6 +579,22 @@ const MainContentBody = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [mode, setMode] = useState<'reasoning' | 'deep_research' | null>(null);
 
+    const isGuest = selectedChatId?.startsWith('guest-');
+    
+    // Check if the current session is empty
+    const messagesQuery = useMemoFirebase(() => {
+        if (!user || !selectedChatId || isGuest) return null;
+        return query(
+            collection(firestore, `users/${user.uid}/chatSessions/${selectedChatId}/chatMessages`),
+            orderBy('timestamp', 'asc')
+        );
+    }, [firestore, user, selectedChatId, isGuest]);
+    
+    const { data: cloudMessages } = useCollection<Message>(messagesQuery);
+    const guestMessages = isGuest ? guestSessions.find(s => s.id === selectedChatId)?.messages : [];
+    const activeMessages = isGuest ? guestMessages : cloudMessages;
+    const isEmpty = !activeMessages || activeMessages.length === 0;
+
     const handleWelcomeSubmit = async (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         if (!input.trim() || isLoading || !user) return;
@@ -553,43 +606,58 @@ const MainContentBody = () => {
         setMode(null);
         setIsLoading(true);
 
-        if (user.isAnonymous) {
-            const newGuestChatId = `guest-${Date.now()}`;
-            const initialMessages: Message[] = [
-                { senderType: "user", content: tempUserInput, timestamp: new Date() }
-            ];
-            
-            const newSession: ChatSession = {
-                id: newGuestChatId,
-                title: 'New Guest Chat',
-                userId: 'guest',
-                createdAt: new Date(),
-                updatedAt: new Date(),
-                messages: initialMessages
-            };
+        // If we already have a selected but empty session, use it. 
+        // Otherwise create a completely new one.
+        let targetChatId = selectedChatId;
+        
+        if (!targetChatId) {
+            if (user.isAnonymous) {
+                targetChatId = `guest-${Date.now()}`;
+                const newSession: ChatSession = {
+                    id: targetChatId,
+                    title: 'New Guest Chat',
+                    userId: 'guest',
+                    createdAt: new Date(),
+                    updatedAt: new Date(),
+                    messages: []
+                };
+                setGuestSessions(prev => [newSession, ...prev]);
+                setSelectedChatId(targetChatId);
+            } else {
+                const newChatSession = {
+                    title: 'New Chat',
+                    userId: user.uid,
+                    createdAt: serverTimestamp(),
+                    updatedAt: serverTimestamp(),
+                };
+                const sessionDocRef = await addDoc(
+                    collection(firestore, 'users', user.uid, 'chatSessions'),
+                    newChatSession
+                );
+                targetChatId = sessionDocRef.id;
+                setSelectedChatId(targetChatId);
+            }
+        }
 
-            setGuestSessions(prev => [newSession, ...prev]);
-            setSelectedChatId(newGuestChatId);
+        if (user.isAnonymous) {
             setIsGuestLoading(true);
             setIsLoading(false);
+            
+            const userMessage: Message = { senderType: "user", content: tempUserInput, timestamp: new Date() };
+            setGuestSessions(prev => prev.map(s => s.id === targetChatId ? { ...s, messages: [...(s.messages || []), userMessage] } : s));
 
             try {
                 const { response } = await chatWithAi({ message: tempUserInput, mode: currentMode });
                 const aiMessage: Message = { senderType: "ai", content: response, timestamp: new Date() };
                 
-                setGuestSessions(prev => prev.map(s => s.id === newGuestChatId ? {
+                setGuestSessions(prev => prev.map(s => s.id === targetChatId ? {
                     ...s,
-                    messages: [...s.messages!, aiMessage]
+                    messages: [...(s.messages || []), aiMessage]
                 } : s));
 
                 generateChatTitle({ message: tempUserInput }).then(({ title }) => {
                     if (title) {
-                        setGuestSessions(prev => prev.map(s => {
-                            if (s.id === newGuestChatId) {
-                                return { ...s, title };
-                            }
-                            return s;
-                        }));
+                        setGuestSessions(prev => prev.map(s => s.id === targetChatId ? { ...s, title } : s));
                     }
                 });
             } catch (err) {
@@ -602,34 +670,19 @@ const MainContentBody = () => {
         }
 
         try {
-            const newChatSession = {
-                title: 'New Chat',
-                userId: user.uid,
-                createdAt: serverTimestamp(),
-                updatedAt: serverTimestamp(),
-            };
-            
-            const sessionDocRef = await addDoc(
-                collection(firestore, 'users', user.uid, 'chatSessions'),
-                newChatSession
-            );
-            const newChatId = sessionDocRef.id;
-            
-            const messagesCollection = collection(firestore, `users/${user.uid}/chatSessions/${newChatId}/chatMessages`);
+            const messagesCollection = collection(firestore, `users/${user.uid}/chatSessions/${targetChatId}/chatMessages`);
             const userMessage = {
               senderType: "user" as const,
               content: tempUserInput,
               timestamp: serverTimestamp(),
-              chatSessionId: newChatId,
+              chatSessionId: targetChatId,
             };
             await addDoc(messagesCollection, userMessage);
             
-            setSelectedChatId(newChatId);
-
             generateChatTitle({ message: tempUserInput })
                 .then(({ title }) => {
-                    if (title) {
-                        updateDocumentNonBlocking(sessionDocRef, { title });
+                    if (title && targetChatId) {
+                        updateDocumentNonBlocking(doc(firestore, `users/${user.uid}/chatSessions/${targetChatId}`), { title });
                     }
                 })
                 .catch(err => console.error("Failed to generate chat title:", err));
@@ -639,12 +692,12 @@ const MainContentBody = () => {
               senderType: "ai" as const,
               content: response,
               timestamp: serverTimestamp(),
-              chatSessionId: newChatId,
+              chatSessionId: targetChatId,
             };
             await addDoc(messagesCollection, assistantMessage);
 
         } catch (error) {
-           console.error("Failed to create new chat:", error);
+           console.error("Failed to process message:", error);
            toast({
              variant: "destructive",
              title: "Uh oh! Something went wrong.",
@@ -655,14 +708,16 @@ const MainContentBody = () => {
         }
     };
 
-    if (selectedChatId) {
+    // If a chat is selected AND it has messages, show the interface.
+    // Otherwise show the "Hello" screen.
+    if (selectedChatId && !isEmpty) {
         const currentGuestSession = guestSessions.find(s => s.id === selectedChatId);
         return (
              <main className="flex-1 flex items-center justify-center p-4 md:p-6">
                 <ChatInterface 
                     key={selectedChatId} 
                     chatSessionId={selectedChatId} 
-                    initialInput={input}
+                    initialInput={""}
                     initialGuestMessages={currentGuestSession?.messages}
                     onGuestMessagesChange={(updater) => {
                         setGuestSessions(prev => prev.map(s => {
