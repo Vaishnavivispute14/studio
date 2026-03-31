@@ -33,7 +33,7 @@ service cloud.firestore {
 
     /**
      * Ensures an operation is performed by the owner on an existing document.
-     * Prevents modifying or deleting documents that do not exist.
+     * Prevents modifying documents that do not exist.
      */
     function isExistingOwner(userId) {
       return isOwner(userId) && resource != null;
@@ -93,7 +93,7 @@ service cloud.firestore {
       allow list: if false;
       allow create: if isOwner(userId) && isValidUserProfileCreate(userId);
       allow update: if isExistingOwner(userId) && isImmutableUserId();
-      allow delete: if isExistingOwner(userId);
+      allow delete: if isOwner(userId);
 
       /**
        * @description Rules for chat sessions owned by a specific user.
@@ -104,7 +104,7 @@ service cloud.firestore {
         allow list: if isOwner(userId);
         allow create: if isOwner(userId) && isValidChatSessionCreate(userId);
         allow update: if isExistingOwner(userId) && isImmutableChatSessionFields();
-        allow delete: if isExistingOwner(userId);
+        allow delete: if isOwner(userId);
 
         /**
          * @description Rules for messages within a user's specific chat session.
@@ -115,7 +115,7 @@ service cloud.firestore {
           allow list: if isOwner(userId);
           allow create: if isOwner(userId) && isValidChatMessageCreate(chatSessionId);
           allow update: if isExistingOwner(userId) && isImmutableChatMessageFields();
-          allow delete: if isExistingOwner(userId);
+          allow delete: if isOwner(userId);
         }
       }
     }
