@@ -127,7 +127,11 @@
     "providers": [
       "password",
       "anonymous"
-    ]
+    ],
+    "branding": {
+      "projectName": "NexBot",
+      "supportEmail": "support@nexbot.com"
+    }
   },
   "firestore": {
     "structure": [
@@ -138,11 +142,11 @@
           "schema": {
             "$ref": "#/backend/entities/UserProfile"
           },
-          "description": "Stores individual user profiles, including details for both registered and guest users. Each document ID (`userId`) corresponds to the Firebase Authentication UID. Access is restricted to the owning user. Includes 'isGuest' to identify temporary profiles.",
+          "description": "Stores individual user profiles. Each document ID corresponds to the Firebase UID.",
           "params": [
             {
               "name": "userId",
-              "description": "The unique Firebase Authentication User ID of the user."
+              "description": "The unique Firebase Authentication User ID."
             }
           ]
         }
@@ -154,15 +158,15 @@
           "schema": {
             "$ref": "#/backend/entities/ChatSession"
           },
-          "description": "Stores individual chat sessions (conversations) for a specific user. Each document ID (`chatSessionId`) identifies a unique conversation thread. Access is restricted to the owning user, whose ID is denormalized in the path for authorization independence.",
+          "description": "Stores individual chat sessions for a specific user.",
           "params": [
             {
               "name": "userId",
-              "description": "The unique Firebase Authentication User ID of the owner of this chat session."
+              "description": "The owner's Firebase UID."
             },
             {
               "name": "chatSessionId",
-              "description": "The unique ID of the chat session."
+              "description": "The unique session ID."
             }
           ]
         }
@@ -174,19 +178,19 @@
           "schema": {
             "$ref": "#/backend/entities/ChatMessage"
           },
-          "description": "Stores individual messages within a specific chat session. Each document ID (`messageId`) identifies a single message. Access is restricted to the owning user of the parent chat session, with user and session IDs denormalized in the path for authorization independence.",
+          "description": "Stores messages within a specific chat session.",
           "params": [
             {
               "name": "userId",
-              "description": "The unique Firebase Authentication User ID of the owner of the parent chat session."
+              "description": "The owner's Firebase UID."
             },
             {
               "name": "chatSessionId",
-              "description": "The unique ID of the parent chat session."
+              "description": "The parent session ID."
             },
             {
               "name": "messageId",
-              "description": "The unique ID of the chat message."
+              "description": "The unique message ID."
             }
           ]
         }
