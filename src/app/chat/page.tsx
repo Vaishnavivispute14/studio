@@ -111,8 +111,9 @@ const ChatHistoryItem = ({ session, isSelected, onSelect, isGuest }: { session: 
                 setGuestSessions(prev => prev.filter(s => s.id !== session.id));
                 toast({ variant: "destructive", title: "Deleted", description: "Guest chat session removed." });
                 break;
-            default:
-                toast({ title: "Feature unavailable", description: "Login to pin chats." });
+            case 'pin':
+                setGuestSessions(prev => prev.map(s => s.id === session.id ? { ...s, isPinned: !s.isPinned } : s));
+                break;
         }
         return;
     }
@@ -200,11 +201,9 @@ const ChatHistoryItem = ({ session, isSelected, onSelect, isGuest }: { session: 
                   </DropdownMenuItem>
                 ) : (
                   <>
-                    {!isGuest && (
-                      <DropdownMenuItem onClick={() => handleAction('pin')}>
+                    <DropdownMenuItem onClick={() => handleAction('pin')}>
                         <Pin className="mr-2 h-4 w-4" /> {session.isPinned ? 'Unpin' : 'Pin'}
-                      </DropdownMenuItem>
-                    )}
+                    </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => handleAction('archive')}>
                       <Archive className="mr-2 h-4 w-4" /> Archive
                     </DropdownMenuItem>
@@ -281,11 +280,9 @@ const ChatSidebar = () => {
 
   const rawSessions = user?.isAnonymous ? guestSessions : cloudSessions || [];
   
-  // Filtering logic including content for guest sessions
   const filteredSessions = rawSessions.filter(s => {
     const q = searchQuery.toLowerCase();
     const titleMatch = s.title?.toLowerCase().includes(q);
-    // Content search for guests (as they are fully in memory)
     const contentMatch = user?.isAnonymous ? s.messages?.some(m => m.content.toLowerCase().includes(q)) : false;
     return titleMatch || contentMatch;
   });
@@ -326,7 +323,7 @@ const ChatSidebar = () => {
                     <h1 className="text-2xl font-bold text-foreground font-headline ml-2 truncate">NexBot</h1>
                 </div>
             )}
-            <SidebarTrigger className="h-8 w-8" />
+            <SidebarTrigger className="h-8 w-8 md:hidden" />
         </div>
         {state === "expanded" && (
             <Button 
@@ -366,16 +363,20 @@ const ChatSidebar = () => {
           </SidebarMenu>
         </SidebarGroup>
 
-        {archivedSessions.length > 0 && (
-          <SidebarGroup>
-            <SidebarGroupLabel>Archived</SidebarGroupLabel>
-            <SidebarMenu>
-              {archivedSessions.map(session => (
-                <ChatHistoryItem key={session.id} session={session} isSelected={selectedChatId === session.id} onSelect={setSelectedChatId} isGuest={!!user?.isAnonymous} />
-              ))}
-            </SidebarMenu>
-          </SidebarGroup>
-        )}
+        <SidebarGroup>
+          <SidebarGroupLabel>Archived</SidebarGroupLabel>
+          <SidebarMenu>
+            {archivedSessions.length > 0 ? (
+                archivedSessions.map(session => (
+                    <ChatHistoryItem key={session.id} session={session} isSelected={selectedChatId === session.id} onSelect={setSelectedChatId} isGuest={!!user?.isAnonymous} />
+                ))
+            ) : (
+                <SidebarMenuItem>
+                    <div className="px-3 py-2 text-xs text-muted-foreground italic">No chats archived</div>
+                </SidebarMenuItem>
+            )}
+          </SidebarMenu>
+        </SidebarGroup>
 
         <SidebarSeparator />
         
@@ -446,7 +447,7 @@ const MainContentHeader = () => {
     const { user, firestore, auth } = useFirebase();
     const router = useRouter();
     const { toast } = useToast();
-    const { setSelectedChatId, selectedChatId, guestSessions } = useChatState();
+    const { setSelectedChatId, selectedChatId, guestSessions, setGuestSessions } = useChatState();
 
     const isGuest = selectedChatId?.startsWith('guest-');
     
@@ -467,8 +468,28 @@ const MainContentHeader = () => {
     };
 
     const handleAction = (action: 'pin' | 'archive' | 'delete') => {
-        if (!user || isGuest) return;
-        if (!chatSessionRef || !chatSession) return;
+        if (!user || !selectedChatId || !chatSession) return;
+        
+        if (isGuest) {
+            switch (action) {
+                case 'pin':
+                    setGuestSessions(prev => prev.map(s => s.id === selectedChatId ? { ...s, isPinned: !s.isPinned } : s));
+                    break;
+                case 'archive':
+                    setGuestSessions(prev => prev.map(s => s.id === selectedChatId ? { ...s, isArchived: true } : s));
+                    setSelectedChatId(null);
+                    toast({ title: "Archived", description: "Guest chat session archived." });
+                    break;
+                case 'delete':
+                    setGuestSessions(prev => prev.filter(s => s.id !== selectedChatId));
+                    setSelectedChatId(null);
+                    toast({ variant: "destructive", title: "Deleted", description: "Guest chat session removed." });
+                    break;
+            }
+            return;
+        }
+
+        if (!chatSessionRef) return;
         
         switch (action) {
           case 'pin':
@@ -476,6 +497,7 @@ const MainContentHeader = () => {
             break;
           case 'archive':
             updateDocumentNonBlocking(chatSessionRef, { isArchived: true });
+            setSelectedChatId(null);
             toast({ title: "Archived", description: "Chat session moved to archives." });
             break;
           case 'delete':
@@ -511,7 +533,7 @@ const MainContentHeader = () => {
             </div>
             <div className="flex items-center gap-2">
                 <ThemeToggle />
-                {selectedChatId && !isGuest && (
+                {selectedChatId && chatSession && (
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="icon" className="h-9 w-9">
@@ -523,11 +545,11 @@ const MainContentHeader = () => {
                                 <Pin className="mr-2 h-4 w-4" /> {chatSession?.isPinned ? 'Unpin Chat' : 'Pin Chat'}
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handleAction('archive')}>
-                                <Archive className="mr-2 h-4 w-4" /> Archive
+                                <Archive className="mr-2 h-4 w-4" /> Archive Chat
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem onClick={() => handleAction('delete')} className="text-destructive">
-                                <Trash2 className="mr-2 h-4 w-4" /> Delete
+                                <Trash2 className="mr-2 h-4 w-4" /> Delete Chat
                             </DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>
