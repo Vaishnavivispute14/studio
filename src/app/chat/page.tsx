@@ -60,6 +60,8 @@ type ChatState = {
   setGuestSessions: React.Dispatch<React.SetStateAction<ChatSession[]>>;
   isGuestLoading: boolean;
   setIsGuestLoading: React.Dispatch<React.SetStateAction<boolean>>;
+  viewMode: 'active' | 'archived';
+  setViewMode: (mode: 'active' | 'archived') => void;
 }
 const ChatStateContext = createContext<ChatState | null>(null);
 
@@ -67,12 +69,14 @@ const ChatStateProvider = ({ children }: { children: React.ReactNode }) => {
     const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
     const [guestSessions, setGuestSessions] = useState<ChatSession[]>([]);
     const [isGuestLoading, setIsGuestLoading] = useState(false);
+    const [viewMode, setViewMode] = useState<'active' | 'archived'>('active');
 
     return (
         <ChatStateContext.Provider value={{ 
             selectedChatId, setSelectedChatId, 
             guestSessions, setGuestSessions,
-            isGuestLoading, setIsGuestLoading
+            isGuestLoading, setIsGuestLoading,
+            viewMode, setViewMode
         }}>
             {children}
         </ChatStateContext.Provider>
@@ -226,7 +230,7 @@ const ChatSidebar = () => {
   const { user, auth, firestore } = useFirebase();
   const { state } = useSidebar();
   const router = useRouter();
-  const { setSelectedChatId, selectedChatId, guestSessions, setGuestSessions } = useChatState();
+  const { setSelectedChatId, selectedChatId, guestSessions, setGuestSessions, viewMode, setViewMode } = useChatState();
   const [searchQuery, setSearchQuery] = useState("");
   
   const handleLogout = () => {
@@ -238,6 +242,7 @@ const ChatSidebar = () => {
 
   const handleNewChat = async () => {
     if (!user) return;
+    setViewMode('active');
     if (user.isAnonymous) {
         const newGuestSession: ChatSession = {
             id: `guest-${Date.now()}`,
@@ -293,7 +298,9 @@ const ChatSidebar = () => {
   const pinnedSessions = activeSessions.filter(s => s.isPinned) || [];
   const regularSessions = activeSessions.filter(s => !s.isPinned) || [];
 
-  const filteredGroups = Object.entries(regularSessions.reduce((acc, session) => {
+  const currentViewSessions = viewMode === 'active' ? activeSessions : archivedSessions;
+
+  const filteredGroups = Object.entries((viewMode === 'active' ? regularSessions : currentViewSessions).reduce((acc, session) => {
     const date = session.createdAt?.seconds ? new Date(session.createdAt.seconds * 1000) : new Date(session.createdAt);
     if (!date || isNaN(date.getTime())) return acc;
     
@@ -358,23 +365,21 @@ const ChatSidebar = () => {
         <SidebarGroup>
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton onClick={() => setSelectedChatId(null)} isActive={selectedChatId === null}><Home /> Home</SidebarMenuButton>
+              <SidebarMenuButton 
+                onClick={() => { setSelectedChatId(null); setViewMode('active'); }} 
+                isActive={viewMode === 'active' && selectedChatId === null}
+              >
+                <Home /> Home
+              </SidebarMenuButton>
             </SidebarMenuItem>
-          </SidebarMenu>
-        </SidebarGroup>
-
-        <SidebarGroup>
-          <SidebarGroupLabel>Archived</SidebarGroupLabel>
-          <SidebarMenu>
-            {archivedSessions.length > 0 ? (
-                archivedSessions.map(session => (
-                    <ChatHistoryItem key={session.id} session={session} isSelected={selectedChatId === session.id} onSelect={setSelectedChatId} isGuest={!!user?.isAnonymous} />
-                ))
-            ) : (
-                <SidebarMenuItem>
-                    <div className="px-3 py-2 text-xs text-muted-foreground italic">No chats archived</div>
-                </SidebarMenuItem>
-            )}
+            <SidebarMenuItem>
+              <SidebarMenuButton 
+                onClick={() => { setViewMode('archived'); setSelectedChatId(null); }} 
+                isActive={viewMode === 'archived'}
+              >
+                <Archive /> Archived
+              </SidebarMenuButton>
+            </SidebarMenuItem>
           </SidebarMenu>
         </SidebarGroup>
 
@@ -388,7 +393,7 @@ const ChatSidebar = () => {
             </SidebarGroup>
         )}
 
-        {!sessionsLoading && pinnedSessions.length > 0 && (
+        {viewMode === 'active' && !sessionsLoading && pinnedSessions.length > 0 && (
           <SidebarGroup>
             <SidebarGroupLabel>Pinned</SidebarGroupLabel>
             <SidebarMenu>
@@ -399,7 +404,13 @@ const ChatSidebar = () => {
           </SidebarGroup>
         )}
 
-        {!sessionsLoading && filteredGroups.map(([group, sessions]) => (
+        {!sessionsLoading && viewMode === 'archived' && archivedSessions.length === 0 && (
+            <SidebarGroup>
+                <div className="px-3 py-4 text-xs text-muted-foreground italic text-center">No chats archived</div>
+            </SidebarGroup>
+        )}
+
+        {!sessionsLoading && (viewMode === 'archived' || viewMode === 'active') && filteredGroups.map(([group, sessions]) => (
             <SidebarGroup key={group}>
                 <SidebarGroupLabel>{group}</SidebarGroupLabel>
                 <SidebarMenu>
@@ -614,7 +625,8 @@ const MainContentBody = () => {
     const { 
         selectedChatId, setSelectedChatId, 
         guestSessions, setGuestSessions,
-        isGuestLoading, setIsGuestLoading
+        isGuestLoading, setIsGuestLoading,
+        setViewMode
     } = useChatState();
     const { user } = useUser();
     const { firestore } = useFirebase();
@@ -656,6 +668,7 @@ const MainContentBody = () => {
         let targetChatId = selectedChatId;
         
         if (!targetChatId) {
+            setViewMode('active');
             if (user.isAnonymous) {
                 targetChatId = `guest-${Date.now()}`;
                 const newSession: ChatSession = {
@@ -828,3 +841,4 @@ const MainContentBody = () => {
         </main>
     );
 }
+
