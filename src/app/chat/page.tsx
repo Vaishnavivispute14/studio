@@ -539,10 +539,6 @@ const MainContentHeader = () => {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent>
                         <DropdownMenuItem>NexBot 4.0</DropdownMenuItem>
-                        <DropdownMenuItem disabled className="text-muted-foreground flex justify-between">
-                          <span>NexBot Pro</span>
-                          <Sparkles className="h-3 w-3 text-primary" />
-                        </DropdownMenuItem>
                     </DropdownMenuContent>
                 </DropdownMenu>
             </div>
