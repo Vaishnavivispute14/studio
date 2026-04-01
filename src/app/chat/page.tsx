@@ -33,6 +33,7 @@ import { useToast } from '@/hooks/use-toast';
 import { generateChatTitle } from '@/ai/flows/generate-chat-title';
 import { chatWithAi } from '@/ai/flows/chat-with-ai';
 import { cn } from '@/lib/utils';
+import { Separator } from '@/components/ui/separator';
 
 type Message = {
   id?: string;
@@ -480,11 +481,14 @@ const MainContentHeader = () => {
     return (
         <header className="sticky top-0 z-10 flex items-center justify-between p-4 border-b bg-background/50 backdrop-blur-sm h-[64px]">
             <div className="flex items-center gap-2">
+                <SidebarTrigger className="-ml-1" />
+                <Separator orientation="vertical" className="mr-2 h-4" />
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="font-semibold text-lg gap-2">
+                        <Button variant="ghost" className="font-semibold text-lg gap-2 px-2">
                             <Bot className="h-5 w-5 text-primary" />
-                            NexBot 4.0
+                            <span className="hidden sm:inline">NexBot 4.0</span>
+                            <span className="sm:hidden">4.0</span>
                             <ChevronDown className="h-4 w-4" />
                         </Button>
                     </DropdownMenuTrigger>
