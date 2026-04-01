@@ -481,8 +481,8 @@ const MainContentHeader = () => {
     return (
         <header className="sticky top-0 z-10 flex items-center justify-between p-4 border-b bg-background/50 backdrop-blur-sm h-[64px]">
             <div className="flex items-center gap-2">
-                <SidebarTrigger className="-ml-1" />
-                <Separator orientation="vertical" className="mr-2 h-4" />
+                <SidebarTrigger className="-ml-1 md:hidden" />
+                <Separator orientation="vertical" className="mr-2 h-4 md:hidden" />
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                         <Button variant="ghost" className="font-semibold text-lg gap-2 px-2">
