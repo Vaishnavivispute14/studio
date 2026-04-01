@@ -3,7 +3,7 @@
 
 import { useState, useContext, createContext, type FormEvent, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { collection, serverTimestamp, addDoc, query, orderBy, doc, getDocs } from 'firebase/firestore';
+import { collection, serverTimestamp, addDoc, query, orderBy, doc } from 'firebase/firestore';
 import { useFirebase, useUser, useCollection, useDoc, useMemoFirebase, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
 import {
   SidebarProvider,
@@ -138,6 +138,7 @@ const ChatHistoryItem = ({ session, isSelected, onSelect, isGuest }: { session: 
         toast({ title: "Restored", description: "Chat session restored to main list." });
         break;
       case 'delete':
+        updateDocumentNonBlocking(sessionRef, null); // The non-blocking update helper for delete
         deleteDocumentNonBlocking(sessionRef);
         toast({ variant: "destructive", title: "Deleted", description: "Chat session removed permanently." });
         break;
@@ -366,15 +367,15 @@ const ChatSidebar = () => {
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton 
-                onClick={() => { setSelectedChatId(null); setViewMode('active'); }} 
-                isActive={viewMode === 'active' && selectedChatId === null}
+                onClick={() => setViewMode('active')} 
+                isActive={viewMode === 'active'}
               >
                 <Home /> Home
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
               <SidebarMenuButton 
-                onClick={() => { setViewMode('archived'); setSelectedChatId(null); }} 
+                onClick={() => setViewMode('archived')} 
                 isActive={viewMode === 'archived'}
               >
                 <Archive /> Archived
@@ -406,11 +407,14 @@ const ChatSidebar = () => {
 
         {!sessionsLoading && viewMode === 'archived' && archivedSessions.length === 0 && (
             <SidebarGroup>
-                <div className="px-3 py-4 text-xs text-muted-foreground italic text-center">No chats archived</div>
+                <div className="px-3 py-10 text-xs text-muted-foreground italic text-center animate-in fade-in duration-500">
+                    <Archive className="h-8 w-8 mx-auto mb-2 opacity-20" />
+                    No chats archived
+                </div>
             </SidebarGroup>
         )}
 
-        {!sessionsLoading && (viewMode === 'archived' || viewMode === 'active') && filteredGroups.map(([group, sessions]) => (
+        {!sessionsLoading && filteredGroups.map(([group, sessions]) => (
             <SidebarGroup key={group}>
                 <SidebarGroupLabel>{group}</SidebarGroupLabel>
                 <SidebarMenu>
@@ -841,4 +845,3 @@ const MainContentBody = () => {
         </main>
     );
 }
-
