@@ -443,7 +443,8 @@ const ChatSidebar = () => {
 }
 
 const MainContentHeader = () => {
-    const { user, firestore } = useFirebase();
+    const { user, firestore, auth } = useFirebase();
+    const router = useRouter();
     const { toast } = useToast();
     const { setSelectedChatId, selectedChatId, guestSessions } = useChatState();
 
@@ -457,6 +458,13 @@ const MainContentHeader = () => {
     const { data: cloudChatSession } = useDoc<ChatSession>(chatSessionRef);
     const guestChatSession = isGuest ? guestSessions.find(s => s.id === selectedChatId) : null;
     const chatSession = isGuest ? guestChatSession : cloudChatSession;
+
+    const handleLogout = () => {
+        if (auth) {
+            auth.signOut();
+            router.push('/login');
+        }
+    };
 
     const handleAction = (action: 'pin' | 'archive' | 'delete') => {
         if (!user || isGuest) return;
@@ -524,12 +532,23 @@ const MainContentHeader = () => {
                         </DropdownMenuContent>
                     </DropdownMenu>
                 )}
-                 <Avatar className="h-8 w-8 ml-2">
-                     <AvatarImage src={user?.photoURL || ''} />
-                    <AvatarFallback className="bg-primary text-primary-foreground">
-                        {user?.displayName ? user.displayName[0] : <User />}
-                    </AvatarFallback>
-                </Avatar>
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 ml-2 p-0 rounded-full">
+                            <Avatar className="h-8 w-8">
+                                <AvatarImage src={user?.photoURL || ''} />
+                                <AvatarFallback className="bg-primary text-primary-foreground">
+                                    {user?.displayName ? user.displayName[0] : <User />}
+                                </AvatarFallback>
+                            </Avatar>
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-48">
+                        <DropdownMenuItem onClick={handleLogout}>
+                            <LogOut className="mr-2 h-4 w-4" /> Log out
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
             </div>
       </header>
     )
