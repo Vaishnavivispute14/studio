@@ -528,7 +528,6 @@ const MainContentHeader = () => {
     return (
         <header className="sticky top-0 z-10 flex items-center justify-between p-4 border-b bg-background/50 backdrop-blur-sm h-[64px]">
             <div className="flex items-center gap-2">
-                <SidebarTrigger className="-ml-1" />
                 <Separator orientation="vertical" className="mr-2 h-4" />
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -843,4 +842,3 @@ const MainContentBody = () => {
         </main>
     );
 }
-
