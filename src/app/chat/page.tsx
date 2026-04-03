@@ -93,7 +93,7 @@ const useChatState = () => {
 const ChatHistoryItem = ({ session, isSelected, onSelect, isGuest }: { session: ChatSession; isSelected: boolean; onSelect: (id: string) => void; isGuest: boolean }) => {
   const { user, firestore } = useFirebase();
   const { toast } = useToast();
-  const { setGuestSessions } = useChatState();
+  const { setGuestSessions, setSelectedChatId } = useChatState();
   const [isRenaming, setIsRenaming] = useState(false);
   const [newTitle, setNewTitle] = useState(session.title);
 
@@ -113,6 +113,7 @@ const ChatHistoryItem = ({ session, isSelected, onSelect, isGuest }: { session: 
                 break;
             case 'delete':
                 setGuestSessions(prev => prev.filter(s => s.id !== session.id));
+                if (isSelected) setSelectedChatId(null);
                 toast({ variant: "destructive", title: "Deleted", description: "Guest chat session removed." });
                 break;
             case 'pin':
@@ -138,8 +139,8 @@ const ChatHistoryItem = ({ session, isSelected, onSelect, isGuest }: { session: 
         toast({ title: "Restored", description: "Chat session restored to main list." });
         break;
       case 'delete':
-        updateDocumentNonBlocking(sessionRef, null); // The non-blocking update helper for delete
         deleteDocumentNonBlocking(sessionRef);
+        if (isSelected) setSelectedChatId(null);
         toast({ variant: "destructive", title: "Deleted", description: "Chat session removed permanently." });
         break;
       case 'rename':
@@ -183,6 +184,7 @@ const ChatHistoryItem = ({ session, isSelected, onSelect, isGuest }: { session: 
             isActive={isSelected}
             onClick={() => onSelect(session.id)}
             className="pr-8"
+            tooltip={session.title}
           >
             <MessageSquare className={cn("h-4 w-4 shrink-0", session.isPinned && "text-primary fill-primary/20")} />
             <span className="truncate">{session.title}</span>
@@ -320,28 +322,26 @@ const ChatSidebar = () => {
 
   return (
     <>
-      <SidebarHeader className="pt-4 px-2">
-        <div className={cn(
-            "flex h-10 items-center mb-4",
-            state === "expanded" ? "justify-between" : "justify-center"
-        )}>
-            {state === "expanded" && (
-                <div className="flex items-center overflow-hidden">
-                    <Bot className="h-8 w-8 text-primary shrink-0" />
-                    <h1 className="text-2xl font-bold text-foreground font-headline ml-2 truncate">NexBot</h1>
-                </div>
-            )}
-            <SidebarTrigger className="h-8 w-8 md:hidden" />
+      <SidebarHeader className="p-4">
+        <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 overflow-hidden group-data-[collapsible=icon]:hidden">
+                <Bot className="h-6 w-6 text-primary shrink-0" />
+                <span className="font-bold text-xl tracking-tight truncate font-headline">NexBot</span>
+            </div>
+            <SidebarTrigger className="h-8 w-8" />
         </div>
-        {state === "expanded" && (
-            <Button 
-                onClick={handleNewChat} 
-                className="w-full bg-primary hover:bg-primary/90 text-white shadow-md font-semibold"
-            >
-                <Plus className="mr-2 h-4 w-4" />
-                New Chat
-            </Button>
-        )}
+        <SidebarMenu className="mt-4">
+            <SidebarMenuItem>
+                <SidebarMenuButton 
+                    onClick={handleNewChat} 
+                    className="bg-muted/50 hover:bg-muted font-semibold h-10"
+                    tooltip="New Chat"
+                >
+                    <Plus className="h-4 w-4" />
+                    <span>New Chat</span>
+                </SidebarMenuButton>
+            </SidebarMenuItem>
+        </SidebarMenu>
       </SidebarHeader>
       <SidebarContent className="scrollbar-thin scrollbar-visible">
         <SidebarGroup>
@@ -369,16 +369,18 @@ const ChatSidebar = () => {
               <SidebarMenuButton 
                 onClick={() => setViewMode('active')} 
                 isActive={viewMode === 'active'}
+                tooltip="Home"
               >
-                <Home /> Home
+                <Home /> <span>Home</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
               <SidebarMenuButton 
                 onClick={() => setViewMode('archived')} 
                 isActive={viewMode === 'archived'}
+                tooltip="Archived"
               >
-                <Archive /> Archived
+                <Archive /> <span>Archived</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
@@ -407,7 +409,7 @@ const ChatSidebar = () => {
 
         {!sessionsLoading && viewMode === 'archived' && archivedSessions.length === 0 && (
             <SidebarGroup>
-                <div className="px-3 py-10 text-xs text-muted-foreground italic text-center animate-in fade-in duration-500">
+                <div className="px-3 py-10 text-xs text-muted-foreground italic text-center animate-in fade-in duration-500 group-data-[collapsible=icon]:hidden">
                     <Archive className="h-8 w-8 mx-auto mb-2 opacity-20" />
                     No chats archived
                 </div>
@@ -416,7 +418,7 @@ const ChatSidebar = () => {
 
         {!sessionsLoading && filteredGroups.map(([group, sessions]) => (
             <SidebarGroup key={group}>
-                <SidebarGroupLabel>{group}</SidebarGroupLabel>
+                <SidebarGroupLabel className="group-data-[collapsible=icon]:hidden">{group}</SidebarGroupLabel>
                 <SidebarMenu>
                     {sessions.map((session) => (
                       <ChatHistoryItem key={session.id} session={session} isSelected={selectedChatId === session.id} onSelect={setSelectedChatId} isGuest={!!user?.isAnonymous} />
@@ -526,8 +528,8 @@ const MainContentHeader = () => {
     return (
         <header className="sticky top-0 z-10 flex items-center justify-between p-4 border-b bg-background/50 backdrop-blur-sm h-[64px]">
             <div className="flex items-center gap-2">
-                <SidebarTrigger className="-ml-1 md:hidden" />
-                <Separator orientation="vertical" className="mr-2 h-4 md:hidden" />
+                <SidebarTrigger className="-ml-1" />
+                <Separator orientation="vertical" className="mr-2 h-4" />
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                         <Button variant="ghost" className="font-semibold text-lg gap-2 px-2">
@@ -841,3 +843,4 @@ const MainContentBody = () => {
         </main>
     );
 }
+
